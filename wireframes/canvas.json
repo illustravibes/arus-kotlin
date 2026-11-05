@@ -1,0 +1,610 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-10-22T09:00:00Z"
+ },
+ "title": "Arus: Wireframe Layar Kunci",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Kunci.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "S-01 Kunci Aplikasi"
+  },
+  "Sambutan.dc.html": {
+   "x": 470,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "S-02 Sambutan"
+  },
+  "SetupDompet.dc.html": {
+   "x": 940,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "S-03 Setup Dompet Pertama"
+  },
+  "PilihKategori.dc.html": {
+   "x": 1410,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "S-04 Pilih Kategori"
+  },
+  "PIN.dc.html": {
+   "x": 1880,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "S-05 Atur PIN"
+  },
+  "Pulihkan.dc.html": {
+   "x": 2350,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "S-06 Pulihkan Backup"
+  },
+  "Main.dc.html": {
+   "x": 3290,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "S-10 Beranda"
+  },
+  "Pengeluaran.dc.html": {
+   "x": 0,
+   "y": 964,
+   "w": 390,
+   "h": 844,
+   "title": "S-31 Form Transaksi"
+  },
+  "Riwayat.dc.html": {
+   "x": 1880,
+   "y": 964,
+   "w": 390,
+   "h": 844,
+   "title": "S-30 Riwayat"
+  },
+  "DetailTrx.dc.html": {
+   "x": 2820,
+   "y": 964,
+   "w": 390,
+   "h": 844,
+   "title": "S-33 Detail Transaksi"
+  },
+  "Dompet.dc.html": {
+   "x": 0,
+   "y": 1928,
+   "w": 390,
+   "h": 844,
+   "title": "S-20 Daftar Dompet"
+  },
+  "FormDompet.dc.html": {
+   "x": 470,
+   "y": 1928,
+   "w": 390,
+   "h": 844,
+   "title": "S-21 Form Dompet"
+  },
+  "Transfer.dc.html": {
+   "x": 2350,
+   "y": 1928,
+   "w": 390,
+   "h": 844,
+   "title": "S-34 Transfer"
+  },
+  "Kategori.dc.html": {
+   "x": 0,
+   "y": 2892,
+   "w": 390,
+   "h": 844,
+   "title": "S-40 Daftar Kategori"
+  },
+  "FormKategori.dc.html": {
+   "x": 470,
+   "y": 2892,
+   "w": 390,
+   "h": 844,
+   "title": "S-41 Form Kategori"
+  },
+  "Cocokkan.dc.html": {
+   "x": 470,
+   "y": 3856,
+   "w": 390,
+   "h": 844,
+   "title": "S-101 Hasil Selisih"
+  },
+  "Resolusi.dc.html": {
+   "x": 1410,
+   "y": 3856,
+   "w": 390,
+   "h": 844,
+   "title": "S-103 Resolusi Selisih"
+  },
+  "Anggaran.dc.html": {
+   "x": 0,
+   "y": 4820,
+   "w": 390,
+   "h": 844,
+   "title": "S-50 Anggaran"
+  },
+  "Laporan.dc.html": {
+   "x": 1410,
+   "y": 4820,
+   "w": 390,
+   "h": 844,
+   "title": "S-52 Laporan"
+  },
+  "FormRutin.dc.html": {
+   "x": 470,
+   "y": 5784,
+   "w": 390,
+   "h": 844,
+   "title": "S-61 Form Rutin"
+  },
+  "UtangPiutang.dc.html": {
+   "x": 940,
+   "y": 6748,
+   "w": 390,
+   "h": 844,
+   "title": "S-72 Utang-Piutang"
+  },
+  "Pelunasan.dc.html": {
+   "x": 1880,
+   "y": 6748,
+   "w": 390,
+   "h": 844,
+   "title": "S-74 Catat Pelunasan"
+  },
+  "GOItem.dc.html": {
+   "x": 1410,
+   "y": 7712,
+   "w": 390,
+   "h": 844,
+   "title": "S-83 Item & Pemilik"
+  },
+  "GroupOrder.dc.html": {
+   "x": 2350,
+   "y": 7712,
+   "w": 390,
+   "h": 844,
+   "title": "S-85 Tinjau"
+  },
+  "DetailGO.dc.html": {
+   "x": 2820,
+   "y": 7712,
+   "w": 390,
+   "h": 844,
+   "title": "S-86 Detail Group Order"
+  },
+  "OCR.dc.html": {
+   "x": 940,
+   "y": 8676,
+   "w": 390,
+   "h": 844,
+   "title": "S-92 Hasil OCR"
+  },
+  "PilihKat.dc.html": {
+   "x": 470,
+   "y": 964,
+   "w": 390,
+   "h": 844,
+   "title": "S-37 Pilih Kategori"
+  },
+  "PilihDompet.dc.html": {
+   "x": 940,
+   "y": 964,
+   "w": 390,
+   "h": 844,
+   "title": "S-38 Pilih Dompet"
+  },
+  "Split.dc.html": {
+   "x": 1410,
+   "y": 964,
+   "w": 390,
+   "h": 844,
+   "title": "S-32 Form Split"
+  },
+  "Template.dc.html": {
+   "x": 2820,
+   "y": 1928,
+   "w": 390,
+   "h": 844,
+   "title": "S-35 Template Transfer"
+  },
+  "Cari.dc.html": {
+   "x": 2350,
+   "y": 964,
+   "w": 390,
+   "h": 844,
+   "title": "S-36 Pencarian & Filter"
+  },
+  "DetailDompet.dc.html": {
+   "x": 940,
+   "y": 1928,
+   "w": 390,
+   "h": 844,
+   "title": "S-22 Detail Dompet"
+  },
+  "Terarsip.dc.html": {
+   "x": 1410,
+   "y": 1928,
+   "w": 390,
+   "h": 844,
+   "title": "S-23 Dompet Terarsip"
+  },
+  "NetWorth.dc.html": {
+   "x": 1880,
+   "y": 1928,
+   "w": 390,
+   "h": 844,
+   "title": "S-11 Rincian Net Worth"
+  },
+  "InputSaldo.dc.html": {
+   "x": 0,
+   "y": 3856,
+   "w": 390,
+   "h": 844,
+   "title": "S-100 Input Saldo Asli"
+  },
+  "CekMutasi.dc.html": {
+   "x": 940,
+   "y": 3856,
+   "w": 390,
+   "h": 844,
+   "title": "S-102 Cek Mutasi"
+  },
+  "RiwayatRekon.dc.html": {
+   "x": 1880,
+   "y": 3856,
+   "w": 390,
+   "h": 844,
+   "title": "S-104 Riwayat Rekonsiliasi"
+  },
+  "Pecahan.dc.html": {
+   "x": 2350,
+   "y": 3856,
+   "w": 390,
+   "h": 844,
+   "title": "S-105 Hitung Pecahan"
+  },
+  "HapusKat.dc.html": {
+   "x": 940,
+   "y": 2892,
+   "w": 390,
+   "h": 844,
+   "title": "S-42 Hapus Kategori"
+  },
+  "FormBudget.dc.html": {
+   "x": 470,
+   "y": 4820,
+   "w": 390,
+   "h": 844,
+   "title": "S-51 Form Budget"
+  },
+  "DetailKat.dc.html": {
+   "x": 940,
+   "y": 4820,
+   "w": 390,
+   "h": 844,
+   "title": "S-53 Detail Kategori Periode"
+  },
+  "DaftarRutin.dc.html": {
+   "x": 0,
+   "y": 5784,
+   "w": 390,
+   "h": 844,
+   "title": "S-60 Daftar Aturan Rutin"
+  },
+  "KonfirmasiRutin.dc.html": {
+   "x": 940,
+   "y": 5784,
+   "w": 390,
+   "h": 844,
+   "title": "S-62 Konfirmasi Rutin"
+  },
+  "Reminder.dc.html": {
+   "x": 1410,
+   "y": 5784,
+   "w": 390,
+   "h": 844,
+   "title": "S-63 Pengaturan Reminder"
+  },
+  "Tugas.dc.html": {
+   "x": 1880,
+   "y": 5784,
+   "w": 390,
+   "h": 844,
+   "title": "S-12 Tugas Tertunda"
+  },
+  "Kontak.dc.html": {
+   "x": 0,
+   "y": 6748,
+   "w": 390,
+   "h": 844,
+   "title": "S-70 Daftar Kontak"
+  },
+  "DetailKontak.dc.html": {
+   "x": 470,
+   "y": 6748,
+   "w": 390,
+   "h": 844,
+   "title": "S-71 Detail Kontak"
+  },
+  "FormUtang.dc.html": {
+   "x": 1410,
+   "y": 6748,
+   "w": 390,
+   "h": 844,
+   "title": "S-73 Form Utang-Piutang"
+  },
+  "DialogSelisih.dc.html": {
+   "x": 2350,
+   "y": 6748,
+   "w": 390,
+   "h": 844,
+   "title": "S-75 Dialog Selisih Pelunasan"
+  },
+  "DaftarGO.dc.html": {
+   "x": 0,
+   "y": 7712,
+   "w": 390,
+   "h": 844,
+   "title": "S-80 Daftar Group Order"
+  },
+  "GOInfo.dc.html": {
+   "x": 470,
+   "y": 7712,
+   "w": 390,
+   "h": 844,
+   "title": "S-81 Group Order: Info"
+  },
+  "GOPeserta.dc.html": {
+   "x": 940,
+   "y": 7712,
+   "w": 390,
+   "h": 844,
+   "title": "S-82 Group Order: Peserta"
+  },
+  "GOBiaya.dc.html": {
+   "x": 1880,
+   "y": 7712,
+   "w": 390,
+   "h": 844,
+   "title": "S-84 Group Order: Biaya Bersama"
+  },
+  "Bagikan.dc.html": {
+   "x": 3290,
+   "y": 7712,
+   "w": 390,
+   "h": 844,
+   "title": "S-87 Bagikan Tagihan"
+  },
+  "Kamera.dc.html": {
+   "x": 0,
+   "y": 8676,
+   "w": 390,
+   "h": 844,
+   "title": "S-90 Kamera / Galeri"
+  },
+  "Crop.dc.html": {
+   "x": 470,
+   "y": 8676,
+   "w": 390,
+   "h": 844,
+   "title": "S-91 Crop dan Rotate"
+  },
+  "OCRGO.dc.html": {
+   "x": 1410,
+   "y": 8676,
+   "w": 390,
+   "h": 844,
+   "title": "S-93 Hasil OCR ke Group Order"
+  },
+  "Pengaturan.dc.html": {
+   "x": 0,
+   "y": 9640,
+   "w": 390,
+   "h": 844,
+   "title": "S-110 Pengaturan"
+  },
+  "Keamanan.dc.html": {
+   "x": 470,
+   "y": 9640,
+   "w": 390,
+   "h": 844,
+   "title": "S-111 Keamanan"
+  },
+  "Backup.dc.html": {
+   "x": 940,
+   "y": 9640,
+   "w": 390,
+   "h": 844,
+   "title": "S-112 Backup dan Restore"
+  },
+  "Export.dc.html": {
+   "x": 1410,
+   "y": 9640,
+   "w": 390,
+   "h": 844,
+   "title": "S-113 Export"
+  },
+  "Izin.dc.html": {
+   "x": 1880,
+   "y": 9640,
+   "w": 390,
+   "h": 844,
+   "title": "S-114 Izin dan Notifikasi"
+  },
+  "SplitSheet.dc.html": {
+   "x": 3290,
+   "y": 964,
+   "w": 390,
+   "h": 844,
+   "title": "S-32a Tambah Baris Split"
+  },
+  "Lainnya.dc.html": {
+   "x": 0,
+   "y": 10604,
+   "w": 390,
+   "h": 844,
+   "title": "S-00 Lainnya (Menu)"
+  },
+  "MenuTambah.dc.html": {
+   "x": 470,
+   "y": 10604,
+   "w": 390,
+   "h": 844,
+   "title": "S-00a Menu Tambah (+)"
+  },
+  "FormKredit.dc.html": {
+   "x": 3290,
+   "y": 1928,
+   "w": 390,
+   "h": 844,
+   "title": "S-21a Form Dompet Kredit"
+  },
+  "DetailKredit.dc.html": {
+   "x": 3760,
+   "y": 1928,
+   "w": 390,
+   "h": 844,
+   "title": "S-22a Detail Dompet Kredit"
+  },
+  "FormKontak.dc.html": {
+   "x": 2820,
+   "y": 6748,
+   "w": 390,
+   "h": 844,
+   "title": "S-70a Form Kontak"
+  },
+  "DetailUtang.dc.html": {
+   "x": 3290,
+   "y": 6748,
+   "w": 390,
+   "h": 844,
+   "title": "S-72a Detail Piutang"
+  },
+  "BayarUtang.dc.html": {
+   "x": 3760,
+   "y": 6748,
+   "w": 390,
+   "h": 844,
+   "title": "S-74a Bayar Utang"
+  },
+  "DetailTrxGO.dc.html": {
+   "x": 3760,
+   "y": 964,
+   "w": 390,
+   "h": 844,
+   "title": "S-33a Detail Pembayaran Group Order"
+  },
+  "DialogVerif.dc.html": {
+   "x": 4230,
+   "y": 964,
+   "w": 390,
+   "h": 844,
+   "title": "S-33b Peringatan Terverifikasi"
+  },
+  "SheetItem.dc.html": {
+   "x": 3760,
+   "y": 7712,
+   "w": 390,
+   "h": 844,
+   "title": "S-83a Sheet Item Group Order"
+  },
+  "Periode.dc.html": {
+   "x": 2820,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "S-03a Periode Keuangan"
+  }
+ },
+ "order": [
+  "Kunci.dc.html",
+  "Sambutan.dc.html",
+  "SetupDompet.dc.html",
+  "PilihKategori.dc.html",
+  "PIN.dc.html",
+  "Pulihkan.dc.html",
+  "Main.dc.html",
+  "Pengeluaran.dc.html",
+  "Riwayat.dc.html",
+  "DetailTrx.dc.html",
+  "Dompet.dc.html",
+  "FormDompet.dc.html",
+  "Transfer.dc.html",
+  "Kategori.dc.html",
+  "FormKategori.dc.html",
+  "Cocokkan.dc.html",
+  "Resolusi.dc.html",
+  "Anggaran.dc.html",
+  "Laporan.dc.html",
+  "FormRutin.dc.html",
+  "UtangPiutang.dc.html",
+  "Pelunasan.dc.html",
+  "GOItem.dc.html",
+  "GroupOrder.dc.html",
+  "DetailGO.dc.html",
+  "OCR.dc.html",
+  "PilihKat.dc.html",
+  "PilihDompet.dc.html",
+  "Split.dc.html",
+  "Template.dc.html",
+  "Cari.dc.html",
+  "DetailDompet.dc.html",
+  "Terarsip.dc.html",
+  "NetWorth.dc.html",
+  "InputSaldo.dc.html",
+  "CekMutasi.dc.html",
+  "RiwayatRekon.dc.html",
+  "Pecahan.dc.html",
+  "HapusKat.dc.html",
+  "FormBudget.dc.html",
+  "DetailKat.dc.html",
+  "DaftarRutin.dc.html",
+  "KonfirmasiRutin.dc.html",
+  "Reminder.dc.html",
+  "Tugas.dc.html",
+  "Kontak.dc.html",
+  "DetailKontak.dc.html",
+  "FormUtang.dc.html",
+  "DialogSelisih.dc.html",
+  "DaftarGO.dc.html",
+  "GOInfo.dc.html",
+  "GOPeserta.dc.html",
+  "GOBiaya.dc.html",
+  "Bagikan.dc.html",
+  "Kamera.dc.html",
+  "Crop.dc.html",
+  "OCRGO.dc.html",
+  "Pengaturan.dc.html",
+  "Keamanan.dc.html",
+  "Backup.dc.html",
+  "Export.dc.html",
+  "Izin.dc.html",
+  "SplitSheet.dc.html",
+  "Lainnya.dc.html",
+  "MenuTambah.dc.html",
+  "FormKredit.dc.html",
+  "DetailKredit.dc.html",
+  "FormKontak.dc.html",
+  "DetailUtang.dc.html",
+  "BayarUtang.dc.html",
+  "DetailTrxGO.dc.html",
+  "DialogVerif.dc.html",
+  "SheetItem.dc.html",
+  "Periode.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}
