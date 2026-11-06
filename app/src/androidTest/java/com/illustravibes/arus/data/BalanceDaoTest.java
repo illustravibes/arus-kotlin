@@ -93,6 +93,29 @@ public class BalanceDaoTest {
     }
 
     @Test
+    public void reportCategoryTotalsUseActiveReportSplitsAndExcludeFutureTransactions() {
+        long walletId = wallets.insert(new WalletEntity("Tunai", "CASH", 0, true, false, null));
+        long foodId = database.categoryDao().insert(new CategoryEntity("Makan", "EXPENSE", "restaurant", 0, false, false, 0));
+        long travelId = database.categoryDao().insert(new CategoryEntity("Transport", "EXPENSE", "bus", 1, false, false, 1));
+        TransactionEntity food = new TransactionEntity(TransactionType.EXPENSE, walletId, 300, null,
+                foodId, 10, null, null, null);
+        long foodTransactionId = transactions.insertOrdinary(food, true);
+        TransactionEntity travel = new TransactionEntity(TransactionType.EXPENSE, walletId, 200, null,
+                travelId, 20, null, null, null);
+        long travelTransactionId = transactions.insertOrdinary(travel, true);
+        TransactionEntity future = new TransactionEntity(TransactionType.EXPENSE, walletId, 500, null,
+                foodId, 200, null, null, null);
+        transactions.insertOrdinary(future, true);
+        database.transactionSplitDao().deleteForTransaction(foodTransactionId);
+        database.transactionSplitDao().insert(new TransactionSplitEntity(foodTransactionId, 300, foodId, false, true));
+
+        List<ReportCategoryTotal> result = transactions.reportExpenseCategories(0, 100);
+        assertEquals(1, result.size());
+        assertEquals("Transport", result.get(0).categoryName);
+        assertEquals(200, result.get(0).amountRupiah);
+    }
+
+    @Test
     public void undoDeleteRestoresTransactionAndBalance() {
         long walletId = wallets.insert(new WalletEntity("Tunai", "CASH", 500, true, false, null));
         long categoryId = database.categoryDao().insert(new CategoryEntity("Makan", "EXPENSE", "restaurant", 0, false, false, 0));

@@ -76,4 +76,14 @@ public class RecurringDaoTest {
         assertEquals(true, split.countsInBudget);
         assertEquals(category, split.categoryId.longValue());
     }
+
+    @Test public void notificationDenialDoesNotResolvePendingOccurrence() {
+        long wallet = database.walletDao().insert(new WalletEntity("Tunai", "CASH", 0, true, false, null));
+        long category = database.categoryDao().insert(new CategoryEntity("Makan", "EXPENSE", "restaurant", 0, false, false, 0));
+        database.recurringDao().createRule(new RecurringRuleEntity("Tagihan", "EXPENSE", wallet, category,
+                1000, null, 1, 20000, null, true, true));
+        database.recurringDao().runDue(20000);
+        assertEquals(1, database.recurringDao().pendingOccurrences().size());
+        assertEquals(0, database.transactionDao().activeTransactions().size());
+    }
 }

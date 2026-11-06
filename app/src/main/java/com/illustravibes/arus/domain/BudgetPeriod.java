@@ -33,6 +33,15 @@ public final class BudgetPeriod {
         }
     }
 
+    public static BudgetPeriod containing(int type, LocalDate date, int monthlyStartDay) {
+        if (monthlyStartDay < 1 || monthlyStartDay > 28)
+            throw new IllegalArgumentException("Tanggal awal periode harus antara 1 dan 28.");
+        if (type != MONTHLY) return containing(type, date);
+        LocalDate start = date.withDayOfMonth(monthlyStartDay);
+        if (date.isBefore(start)) start = start.minusMonths(1);
+        return new BudgetPeriod(start, start.plusMonths(1));
+    }
+
     public static int warningLevel(long spent, long limit) {
         return warningLevel(spent, limit, 80);
     }

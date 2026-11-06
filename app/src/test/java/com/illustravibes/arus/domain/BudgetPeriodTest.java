@@ -31,6 +31,18 @@ public class BudgetPeriodTest {
         assertEquals(LocalDate.of(2027, 1, 1), year.endExclusive);
     }
 
+    @Test public void monthlyReportPeriodUsesConfiguredStartDay() {
+        BudgetPeriod beforeStart = BudgetPeriod.containing(BudgetPeriod.MONTHLY,
+                LocalDate.of(2026, 10, 24), 25);
+        BudgetPeriod afterStart = BudgetPeriod.containing(BudgetPeriod.MONTHLY,
+                LocalDate.of(2026, 10, 25), 25);
+
+        assertEquals(LocalDate.of(2026, 9, 25), beforeStart.start);
+        assertEquals(LocalDate.of(2026, 10, 25), beforeStart.endExclusive);
+        assertEquals(LocalDate.of(2026, 10, 25), afterStart.start);
+        assertEquals(LocalDate.of(2026, 11, 25), afterStart.endExclusive);
+    }
+
     @Test public void configuredThresholdControlsWarning() {
         assertEquals(0, BudgetPeriod.warningLevel(699, 1_000, 70));
         assertEquals(70, BudgetPeriod.warningLevel(700, 1_000, 70));

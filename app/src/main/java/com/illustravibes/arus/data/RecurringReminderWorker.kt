@@ -16,6 +16,8 @@ import java.time.LocalDate
 class RecurringReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         return try {
+            if (!applicationContext.getSharedPreferences("arus_reminders", Context.MODE_PRIVATE)
+                    .getBoolean("recurring_enabled", true)) return Result.success()
             val database = DatabaseFactory.open(applicationContext)
             val count = try {
                 database.recurringDao().runDue(LocalDate.now().toEpochDay())

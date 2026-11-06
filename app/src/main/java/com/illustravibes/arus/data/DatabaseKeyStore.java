@@ -46,6 +46,21 @@ public final class DatabaseKeyStore {
         return passphrase;
     }
 
+    public synchronized void replacePassphrase(byte[] passphrase) throws Exception {
+        if (passphrase == null || passphrase.length != PASSPHRASE_SIZE)
+            throw new IllegalArgumentException("Kunci database backup tidak valid.");
+        byte[] encrypted = encrypt(passphrase);
+        boolean saved;
+        try {
+            saved = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+                    .edit().putString(ENVELOPE,
+                            android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)).commit();
+        } finally {
+            Arrays.fill(encrypted, (byte) 0);
+        }
+        if (!saved) throw new IllegalStateException("Kunci database tidak dapat diperbarui.");
+    }
+
     private byte[] encrypt(byte[] plaintext) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateWrapperKey());

@@ -33,17 +33,22 @@ public final class BalanceRepository {
                 if (walletBalance != null) assets = Math.addExact(assets, walletBalance);
             }
         }
-        return new FinancialSummary(assets, liabilities, Math.subtractExact(assets, liabilities));
+        long debtLiabilities = database.debtDao().borrowedOutstandingTotal();
+        return new FinancialSummary(assets, liabilities, debtLiabilities,
+                Math.subtractExact(Math.subtractExact(assets, liabilities), debtLiabilities));
     }
 
     public static final class FinancialSummary {
         public final long assetsRupiah;
         public final long creditLiabilitiesRupiah;
+        public final long debtLiabilitiesRupiah;
         public final long netWorthRupiah;
 
-        public FinancialSummary(long assetsRupiah, long creditLiabilitiesRupiah, long netWorthRupiah) {
+        public FinancialSummary(long assetsRupiah, long creditLiabilitiesRupiah,
+                                long debtLiabilitiesRupiah, long netWorthRupiah) {
             this.assetsRupiah = assetsRupiah;
             this.creditLiabilitiesRupiah = creditLiabilitiesRupiah;
+            this.debtLiabilitiesRupiah = debtLiabilitiesRupiah;
             this.netWorthRupiah = netWorthRupiah;
         }
     }

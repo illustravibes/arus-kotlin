@@ -25,6 +25,11 @@ public class DatabaseMigrationTest {
     private static final String MIGRATION_V6_DB = "migration-v6-test.db";
     private static final String MIGRATION_V11_DB = "migration-v11-test.db";
     private static final String MIGRATION_V13_DB = "migration-v13-test.db";
+    private static final String MIGRATION_V16_DB = "migration-v16-test.db";
+    private static final String MIGRATION_V17_DB = "migration-v17-test.db";
+    private static final String MIGRATION_V18_DB = "migration-v18-test.db";
+    private static final String MIGRATION_V19_DB = "migration-v19-test.db";
+    private static final String MIGRATION_V20_DB = "migration-v20-test.db";
     private final Context context = ApplicationProvider.getApplicationContext();
 
     @Before
@@ -34,6 +39,11 @@ public class DatabaseMigrationTest {
         context.deleteDatabase(MIGRATION_V6_DB);
         context.deleteDatabase(MIGRATION_V11_DB);
         context.deleteDatabase(MIGRATION_V13_DB);
+        context.deleteDatabase(MIGRATION_V16_DB);
+        context.deleteDatabase(MIGRATION_V17_DB);
+        context.deleteDatabase(MIGRATION_V18_DB);
+        context.deleteDatabase(MIGRATION_V19_DB);
+        context.deleteDatabase(MIGRATION_V20_DB);
     }
 
     @After
@@ -43,10 +53,169 @@ public class DatabaseMigrationTest {
         context.deleteDatabase(MIGRATION_V6_DB);
         context.deleteDatabase(MIGRATION_V11_DB);
         context.deleteDatabase(MIGRATION_V13_DB);
+        context.deleteDatabase(MIGRATION_V16_DB);
+        context.deleteDatabase(MIGRATION_V17_DB);
+        context.deleteDatabase(MIGRATION_V18_DB);
+        context.deleteDatabase(MIGRATION_V19_DB);
+        context.deleteDatabase(MIGRATION_V20_DB);
     }
 
     @Test
-    public void migration13To14CreatesRecurringTablesAndUniqueOccurrenceIndex() {
+    public void migration16To17AddsGroupOrderTablesAndPreservesDebtRows() {
+        FrameworkSQLiteOpenHelperFactory factory = new FrameworkSQLiteOpenHelperFactory();
+        androidx.sqlite.db.SupportSQLiteOpenHelper fixture = factory.create(
+                new androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.Builder(context)
+                        .name(MIGRATION_V16_DB)
+                        .callback(new androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(16) {
+                            @Override public void onCreate(SupportSQLiteDatabase db) {
+                                db.execSQL("CREATE TABLE debts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, contactId INTEGER NOT NULL, direction TEXT, source TEXT, originTransactionId INTEGER, principalRupiah INTEGER NOT NULL, status TEXT, dueDateEpochMillis INTEGER, note TEXT, createdAtEpochMillis INTEGER NOT NULL, updatedAtEpochMillis INTEGER NOT NULL, deletedAtEpochMillis INTEGER)");
+                                db.execSQL("INSERT INTO debts (id,contactId,direction,source,principalRupiah,status,createdAtEpochMillis,updatedAtEpochMillis) VALUES (1,9,'LENT','MANUAL',2500,'OPEN',100,100)");
+                            }
+                            @Override public void onUpgrade(SupportSQLiteDatabase db, int oldVersion, int newVersion) { }
+                        }).build());
+        try {
+            SupportSQLiteDatabase db = fixture.getWritableDatabase();
+            ArusDatabase.MIGRATION_16_17.migrate(db);
+            try (android.database.Cursor cursor = db.query("SELECT principalRupiah, groupOrderId FROM debts WHERE id=1")) {
+                if (!cursor.moveToFirst()) throw new AssertionError("Debt fixture was lost during migration.");
+                assertEquals(2500, cursor.getLong(0));
+                if (!cursor.isNull(1)) throw new AssertionError("Existing manual debt must not gain a group order link.");
+            }
+            try (android.database.Cursor cursor = db.query("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name LIKE 'group_order_%'")) {
+                if (!cursor.moveToFirst() || cursor.getInt(0) < 5) throw new AssertionError("Group order tables were not created.");
+            }
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    public void migration17To18CreatesAttachmentTableAndOwnerIndex() {
+        FrameworkSQLiteOpenHelperFactory factory = new FrameworkSQLiteOpenHelperFactory();
+        androidx.sqlite.db.SupportSQLiteOpenHelper fixture = factory.create(
+                new androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.Builder(context)
+                        .name(MIGRATION_V17_DB)
+                        .callback(new androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(17) {
+                            @Override public void onCreate(SupportSQLiteDatabase db) {
+                                db.execSQL("CREATE TABLE preserved (id INTEGER PRIMARY KEY NOT NULL)");
+                                db.execSQL("INSERT INTO preserved VALUES (42)");
+                            }
+                            @Override public void onUpgrade(SupportSQLiteDatabase db, int oldVersion, int newVersion) { }
+                        }).build());
+        try {
+            SupportSQLiteDatabase db = fixture.getWritableDatabase();
+            ArusDatabase.MIGRATION_17_18.migrate(db);
+            db.execSQL("INSERT INTO attachments (ownerType, ownerId, filePath, ocrRawText, createdAtEpochMillis) VALUES ('PENDING', NULL, 'receipts/test.jpg', 'TOTAL 1200', 10)");
+            try (android.database.Cursor cursor = db.query("SELECT filePath, ocrRawText FROM attachments WHERE ownerType='PENDING'")) {
+                if (!cursor.moveToFirst()) throw new AssertionError("Pending receipt attachment was not saved.");
+                assertEquals("receipts/test.jpg", cursor.getString(0));
+                assertEquals("TOTAL 1200", cursor.getString(1));
+            }
+            try (android.database.Cursor cursor = db.query("SELECT id FROM preserved WHERE id=42")) {
+                if (!cursor.moveToFirst()) throw new AssertionError("Existing data was lost during migration.");
+            }
+            try (android.database.Cursor cursor = db.query("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='index_attachments_ownerType_ownerId'")) {
+                if (!cursor.moveToFirst() || cursor.getInt(0) != 1) throw new AssertionError("Attachment owner index was not created.");
+            }
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    public void migration18To19CreatesMerchantCategoryHints() {
+        FrameworkSQLiteOpenHelperFactory factory = new FrameworkSQLiteOpenHelperFactory();
+        androidx.sqlite.db.SupportSQLiteOpenHelper fixture = factory.create(
+                new androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.Builder(context)
+                        .name(MIGRATION_V18_DB)
+                        .callback(new androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(18) {
+                            @Override public void onCreate(SupportSQLiteDatabase db) {
+                                db.execSQL("CREATE TABLE categories (id INTEGER PRIMARY KEY NOT NULL)");
+                                db.execSQL("INSERT INTO categories VALUES (5)");
+                                db.execSQL("CREATE TABLE preserved (id INTEGER PRIMARY KEY NOT NULL)");
+                                db.execSQL("INSERT INTO preserved VALUES (42)");
+                            }
+                            @Override public void onUpgrade(SupportSQLiteDatabase db, int oldVersion, int newVersion) { }
+                        }).build());
+        try {
+            SupportSQLiteDatabase db = fixture.getWritableDatabase();
+            ArusDatabase.MIGRATION_18_19.migrate(db);
+            db.execSQL("INSERT INTO merchant_category_hints (merchantName, categoryId, useCount) VALUES ('WARUNG BUDI', 5, 1)");
+            try (android.database.Cursor cursor = db.query("SELECT categoryId, useCount FROM merchant_category_hints WHERE merchantName='WARUNG BUDI'")) {
+                if (!cursor.moveToFirst()) throw new AssertionError("Merchant hint was not stored.");
+                assertEquals(5, cursor.getLong(0));
+                assertEquals(1, cursor.getInt(1));
+            }
+            try (android.database.Cursor cursor = db.query("SELECT id FROM preserved WHERE id=42")) {
+                if (!cursor.moveToFirst()) throw new AssertionError("Existing data was lost during migration.");
+            }
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    public void migration19To20CreatesCashDenominationCounts() {
+        FrameworkSQLiteOpenHelperFactory factory = new FrameworkSQLiteOpenHelperFactory();
+        androidx.sqlite.db.SupportSQLiteOpenHelper fixture = factory.create(
+                new androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.Builder(context)
+                        .name(MIGRATION_V19_DB)
+                        .callback(new androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(19) {
+                            @Override public void onCreate(SupportSQLiteDatabase db) {
+                                db.execSQL("CREATE TABLE reconciliation_checkpoints (id INTEGER PRIMARY KEY NOT NULL)");
+                                db.execSQL("INSERT INTO reconciliation_checkpoints VALUES (9)");
+                                db.execSQL("CREATE TABLE preserved (id INTEGER PRIMARY KEY NOT NULL)");
+                                db.execSQL("INSERT INTO preserved VALUES (42)");
+                            }
+                            @Override public void onUpgrade(SupportSQLiteDatabase db, int oldVersion, int newVersion) { }
+                        }).build());
+        try {
+            SupportSQLiteDatabase db = fixture.getWritableDatabase();
+            ArusDatabase.MIGRATION_19_20.migrate(db);
+            db.execSQL("INSERT INTO cash_denomination_counts (checkpointId, denominationRupiah, pieceCount) VALUES (9, 50000, 2)");
+            try (android.database.Cursor cursor = db.query("SELECT denominationRupiah, pieceCount FROM cash_denomination_counts WHERE checkpointId=9")) {
+                if (!cursor.moveToFirst()) throw new AssertionError("Cash denomination count was not stored.");
+                assertEquals(50_000, cursor.getLong(0));
+                assertEquals(2, cursor.getLong(1));
+            }
+            try (android.database.Cursor cursor = db.query("SELECT id FROM preserved WHERE id=42")) {
+                if (!cursor.moveToFirst()) throw new AssertionError("Existing data was lost during migration.");
+            }
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    public void migration20To21CreatesReconciliationItems() {
+        FrameworkSQLiteOpenHelperFactory factory = new FrameworkSQLiteOpenHelperFactory();
+        androidx.sqlite.db.SupportSQLiteOpenHelper fixture = factory.create(
+                new androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.Builder(context)
+                        .name(MIGRATION_V20_DB)
+                        .callback(new androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(20) {
+                            @Override public void onCreate(SupportSQLiteDatabase db) {
+                                db.execSQL("CREATE TABLE reconciliation_checkpoints (id INTEGER PRIMARY KEY NOT NULL)");
+                                db.execSQL("CREATE TABLE transactions (id INTEGER PRIMARY KEY NOT NULL)");
+                                db.execSQL("INSERT INTO reconciliation_checkpoints VALUES (9)");
+                                db.execSQL("INSERT INTO transactions VALUES (42)");
+                            }
+                            @Override public void onUpgrade(SupportSQLiteDatabase db, int oldVersion, int newVersion) { }
+                        }).build());
+        try {
+            SupportSQLiteDatabase db = fixture.getWritableDatabase();
+            ArusDatabase.MIGRATION_20_21.migrate(db);
+            db.execSQL("INSERT INTO reconciliation_items (checkpointId, transactionId, matched) VALUES (9, 42, 1)");
+            try (android.database.Cursor cursor = db.query("SELECT matched FROM reconciliation_items WHERE checkpointId=9 AND transactionId=42")) {
+                if (!cursor.moveToFirst()) throw new AssertionError("Reconciliation item was not stored.");
+                assertEquals(1, cursor.getInt(0));
+            }
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    public void migration13To15CreatesRecurringAndDebtTables() {
         FrameworkSQLiteOpenHelperFactory factory = new FrameworkSQLiteOpenHelperFactory();
         androidx.sqlite.db.SupportSQLiteOpenHelper fixture = factory.create(new androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.Builder(context)
                 .name(MIGRATION_V13_DB).callback(new androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(13) {
@@ -75,7 +244,12 @@ public class DatabaseMigrationTest {
                 }).build());
         try { fixture.getWritableDatabase(); } finally { fixture.close(); }
         ArusDatabase migrated = Room.databaseBuilder(context, ArusDatabase.class, MIGRATION_V13_DB)
-                .addMigrations(ArusDatabase.MIGRATION_13_14).build();
+                .addMigrations(ArusDatabase.MIGRATION_20_21, ArusDatabase.MIGRATION_19_20,
+                        ArusDatabase.MIGRATION_13_15, ArusDatabase.MIGRATION_15_16,
+                        ArusDatabase.MIGRATION_19_20,
+                        ArusDatabase.MIGRATION_18_19,
+                        ArusDatabase.MIGRATION_17_18,
+                        ArusDatabase.MIGRATION_16_17).build();
         try {
             long ruleId = migrated.recurringDao().createRule(new RecurringRuleEntity("Sewa", "EXPENSE", 1, 1,
                     1000, null, 1, 20000, null, true, true));
@@ -90,6 +264,13 @@ public class DatabaseMigrationTest {
             assertEquals(1200, migrated.transactionDao().activeTransactions().get(0).amountRupiah);
             assertEquals(1, migrated.transactionSplitDao().splitsForTransaction(
                     migrated.transactionDao().activeTransactions().get(0).id).size());
+            assertEquals(0, migrated.debtDao().activeContacts().size());
+            try (android.database.Cursor cursor = migrated.getOpenHelper().getWritableDatabase().query("SELECT 1 FROM categories WHERE name='Utang Dihapuskan' AND kind='INCOME' AND isSystem=1")) {
+                if (!cursor.moveToFirst()) throw new AssertionError("System category for forgiven debt was not seeded.");
+            }
+            try (android.database.Cursor cursor = migrated.getOpenHelper().getWritableDatabase().query("SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'repayment_allocation_validate_%'")) {
+                if (!cursor.moveToFirst() || cursor.getInt(0) < 4) throw new AssertionError("Allocation integrity triggers were not migrated.");
+            }
         } finally {
             migrated.close();
         }
@@ -100,7 +281,12 @@ public class DatabaseMigrationTest {
     public void migration1To2PreservesWalletAndTransactionFixture() {
         createVersionOneFixture(MIGRATION_DB);
         ArusDatabase migrated = Room.databaseBuilder(context, ArusDatabase.class, MIGRATION_DB)
-                .addMigrations(ArusDatabase.MIGRATION_1_14)
+                .addMigrations(ArusDatabase.MIGRATION_20_21, ArusDatabase.MIGRATION_19_20,
+                        ArusDatabase.MIGRATION_1_15, ArusDatabase.MIGRATION_15_16,
+                        ArusDatabase.MIGRATION_19_20,
+                        ArusDatabase.MIGRATION_18_19,
+                        ArusDatabase.MIGRATION_17_18,
+                        ArusDatabase.MIGRATION_16_17)
                 .build();
         try {
             assertEquals(1000, migrated.walletDao().initialBalance(10).longValue());
@@ -123,7 +309,8 @@ public class DatabaseMigrationTest {
             assertEquals(1000, cursor.getLong(0));
         }
         before.close();
-        ArusDatabase unsupported = Room.databaseBuilder(context, ArusDatabase.class, UNSUPPORTED_DB).build();
+        ArusDatabase unsupported = Room.databaseBuilder(context, ArusDatabase.class, UNSUPPORTED_DB)
+                .addMigrations(ArusDatabase.MIGRATION_14_15).build();
         try {
             unsupported.getOpenHelper().getWritableDatabase();
             throw new AssertionError("Opening without a migration must fail.");
@@ -199,7 +386,12 @@ public class DatabaseMigrationTest {
             fixture.getWritableDatabase();
         } finally { fixture.close(); }
         ArusDatabase migrated = Room.databaseBuilder(context, ArusDatabase.class, name)
-                .addMigrations(ArusDatabase.MIGRATION_6_14).build();
+                .addMigrations(ArusDatabase.MIGRATION_20_21, ArusDatabase.MIGRATION_19_20,
+                        ArusDatabase.MIGRATION_6_15, ArusDatabase.MIGRATION_15_16,
+                        ArusDatabase.MIGRATION_19_20,
+                        ArusDatabase.MIGRATION_18_19,
+                        ArusDatabase.MIGRATION_17_18,
+                        ArusDatabase.MIGRATION_16_17).build();
         try {
             TransactionEntity row = migrated.transactionDao().activeTransactions().get(0);
             assertEquals(100, row.amountRupiah);

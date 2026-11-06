@@ -74,7 +74,12 @@ public class EncryptedDatabaseTest {
     private ArusDatabase open(byte[] key) {
         return Room.databaseBuilder(context, ArusDatabase.class, DATABASE_NAME)
                 .openHelperFactory(new SupportFactory(key.clone(), null, true))
-                .addMigrations(ArusDatabase.MIGRATION_1_14, ArusDatabase.MIGRATION_2_14,
+                .addMigrations(ArusDatabase.MIGRATION_20_21, ArusDatabase.MIGRATION_19_20,
+                        ArusDatabase.MIGRATION_18_19,
+                        ArusDatabase.MIGRATION_17_18,
+                        ArusDatabase.MIGRATION_16_17,
+                        ArusDatabase.MIGRATION_15_16, ArusDatabase.MIGRATION_14_15,
+                        ArusDatabase.MIGRATION_1_14, ArusDatabase.MIGRATION_2_14,
                         ArusDatabase.MIGRATION_3_14, ArusDatabase.MIGRATION_4_14, ArusDatabase.MIGRATION_5_14,
                         ArusDatabase.MIGRATION_6_14, ArusDatabase.MIGRATION_7_14, ArusDatabase.MIGRATION_8_14,
                         ArusDatabase.MIGRATION_9_14, ArusDatabase.MIGRATION_10_14, ArusDatabase.MIGRATION_11_14,

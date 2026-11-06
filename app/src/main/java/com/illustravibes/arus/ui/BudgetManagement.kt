@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -47,6 +48,7 @@ fun BudgetManagement(database: ArusDatabase) {
     var selectedPeriod by remember { mutableStateOf(com.illustravibes.arus.domain.BudgetPeriod.MONTHLY) }
     var threshold by remember { mutableStateOf("80") }
     var categoryPickerOpen by remember { mutableStateOf(false) }
+    var showBudgetForm by remember { mutableStateOf(false) }
 
     suspend fun refresh() {
         val data = withContext(Dispatchers.IO) {
@@ -79,7 +81,20 @@ fun BudgetManagement(database: ArusDatabase) {
         item {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Anggaran", style = com.illustravibes.arus.ui.designsystem.ArusTheme.typography.headline)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text("Anggaran berjalan", style = com.illustravibes.arus.ui.designsystem.ArusTheme.typography.title)
+                ArusButton(onClick = { showBudgetForm = !showBudgetForm; categoryBudget = false; selectedCategory = null }, kind = com.illustravibes.arus.ui.designsystem.ArusButtonKind.Primary) { Text(if (showBudgetForm) "Batal" else "Tambah") }
+            }
+            if (budgets.isEmpty() && !showBudgetForm) {
+                ArusCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Belum ada anggaran berjalan.")
+                        Text("Tambah anggaran untuk memantau pengeluaran periode ini.")
+                    }
+                }
+            }
+            if (showBudgetForm) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ArusButton(onClick = { categoryBudget = false; selectedCategory = null }, selected = !categoryBudget) { Text("Total") }
             ArusButton(onClick = { categoryBudget = true; selectedCategory = categories.firstOrNull()?.id }, selected = categoryBudget) { Text("Kategori") }
             }
@@ -109,13 +124,14 @@ fun BudgetManagement(database: ArusDatabase) {
                 scope.launch {
                     try {
                         withContext(Dispatchers.IO) { database.budgetDao().insertValidated(budget) }
-                        name = ""; amount = ""; error = null; refresh()
+                        name = ""; amount = ""; error = null; showBudgetForm = false; refresh()
                     } catch (failure: Exception) {
                         error = failure.message ?: "Anggaran gagal disimpan."
                     }
                 }
             }
             }) { Text("Simpan anggaran") }
+            }
         }
         }
         items(budgets, key = { it.id }) { budget ->
@@ -127,15 +143,24 @@ fun BudgetManagement(database: ArusDatabase) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(budget.name)
                         Text(
-                            "${periodLabel(budget.periodType)} · ${java.time.LocalDate.ofEpochDay(budget.periodStartEpochDay)} – ${java.time.LocalDate.ofEpochDay(budget.periodEndEpochDay).minusDays(1)}",
+                            "${periodLabel(budget.periodType)} · ${ArusFormatting.formatDate(java.time.LocalDate.ofEpochDay(budget.periodStartEpochDay))} – ${ArusFormatting.formatDate(java.time.LocalDate.ofEpochDay(budget.periodEndEpochDay).minusDays(1))}",
                         )
                         Text(if (budget.categoryId == null) "Semua kategori" else "Kategori pengeluaran")
                         if (budget.rolloverEnabled) Text("Sisa dibawa: ${formatRupiah(progress.rolloverRupiah)}")
                         Text("Terpakai ${formatRupiah(progress.spentRupiah)} dari ${formatRupiah(progress.effectiveLimitRupiah)}")
-                        Text("${(progress.spentRupiah.toDouble() * 100 / progress.effectiveLimitRupiah).toInt().coerceAtLeast(0)}% terpakai")
+                        val percent = if (progress.effectiveLimitRupiah > 0) (progress.spentRupiah.toDouble() * 100 / progress.effectiveLimitRupiah).toInt().coerceAtLeast(0) else 0
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Terpakai")
+                            Text("$percent% · sisa ${formatRupiah((progress.effectiveLimitRupiah - progress.spentRupiah).coerceAtLeast(0))}")
+                        }
+                        androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(16.dp)) {
+                            drawRoundRect(androidx.compose.ui.graphics.Color(0xFFE8E8E8), cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()))
+                            val fraction = (progress.spentRupiah.toFloat() / progress.effectiveLimitRupiah.coerceAtLeast(1)).coerceIn(0f, 1f)
+                            drawRoundRect(androidx.compose.ui.graphics.Color(0xFFB8BEC4), size = androidx.compose.ui.geometry.Size(size.width * fraction, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()))
+                        }
                         if (progress.warningLevel >= budget.warningPercent) Text(if (progress.warningLevel == 100) "Batas anggaran tercapai" else "Mendekati batas anggaran")
                         progress.transactions.forEach { detail ->
-                            Text("${java.time.Instant.ofEpochMilli(detail.occurredAtEpochMillis).atZone(ZoneId.systemDefault()).toLocalDate()} · ${detail.note ?: "Pengeluaran"} · ${formatRupiah(detail.amountRupiah)}")
+                            Text("${ArusFormatting.formatDate(java.time.Instant.ofEpochMilli(detail.occurredAtEpochMillis).atZone(ZoneId.systemDefault()).toLocalDate())} · ${detail.note ?: "Pengeluaran"} · ${formatRupiah(detail.amountRupiah)}")
                         }
                     }
                 }

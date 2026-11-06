@@ -23,6 +23,7 @@ public class PresetSeederTest {
             PresetSeeder.seed(db, context);
             assertEquals(26, db.categoryDao().count());
             assertEquals(6, db.categoryDao().systemCount());
+            assertTrue(db.categoryDao().activeCategories().stream().anyMatch(category -> "Utang Dihapuskan".equals(category.name) && "INCOME".equals(category.kind)));
             try (java.io.InputStream input = context.getAssets().open("wallet-presets.json")) {
                 byte[] bytes = new byte[input.available()];
                 assertEquals(bytes.length, input.read(bytes));

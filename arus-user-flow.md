@@ -457,20 +457,20 @@ S-103  Resolusi sisa selisih
 
 **Backup:**
 ```
-Lainnya → Backup & Restore → Masuk dengan Google
- → Pilih: Backup sekarang / Otomatis (harian/mingguan, hanya Wi-Fi)
- → Opsi kata sandi enkripsi backup (disarankan; dilupakan = tidak bisa dipulihkan, diberi peringatan jelas)
+Lainnya → Backup & Restore → Backup sekarang
+ → Buat file backup terenkripsi → pemilih file sistem → pilih lokasi dan nama
+ → Masukkan kata sandi enkripsi (wajib; dilupakan = tidak bisa dipulihkan, diberi peringatan jelas)
 ```
 
 **Restore saat ganti HP:**
 ```
 Install Arus → Onboarding → "Pulihkan dari backup"
- → Login Google → pilih backup (tampil tanggal dan ukuran) → masukkan kata sandi
+ → pemilih file sistem → pilih file (tampil tanggal dan ukuran) → masukkan kata sandi
  → Proses → Beranda
 ```
 
 **Aturan:**
-- Backup berisi database dan lampiran; disimpan di Drive appDataFolder (tidak tampil di Drive pengguna).
+- Backup berisi database dan lampiran; file disimpan di lokasi yang dipilih pengguna melalui Storage Access Framework. Pengguna dapat memilih Drive atau penyedia berkas lain.
 - Restore menimpa seluruh data lokal setelah konfirmasi eksplisit.
 - Jika versi skema backup lebih baru daripada app, tolak dengan pesan "Perbarui aplikasi".
 

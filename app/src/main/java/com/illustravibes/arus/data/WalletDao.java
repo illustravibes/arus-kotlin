@@ -16,6 +16,9 @@ public interface WalletDao {
     @androidx.room.Query("SELECT * FROM wallets WHERE deletedAtEpochMillis IS NULL AND isArchived = 0 ORDER BY sortOrder, id")
     List<WalletEntity> activeWallets();
 
+    @androidx.room.Query("SELECT * FROM wallets WHERE deletedAtEpochMillis IS NULL AND isArchived = 1 ORDER BY sortOrder, id")
+    List<WalletEntity> archivedWallets();
+
     @androidx.room.Query("SELECT * FROM wallets WHERE deletedAtEpochMillis IS NULL ORDER BY sortOrder, id")
     List<WalletEntity> allWallets();
 

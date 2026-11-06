@@ -7,6 +7,9 @@ import androidx.room.Transaction;
 import androidx.room.Insert;
 import androidx.paging.PagingSource;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Collections;
 
 @Dao
 public interface TransactionDao {
@@ -31,11 +34,66 @@ public interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE deletedAtEpochMillis IS NULL ORDER BY occurredAtEpochMillis DESC, id DESC")
     PagingSource<Integer, TransactionEntity> transactionHistory();
 
+    @Query("SELECT * FROM transactions WHERE deletedAtEpochMillis IS NULL " +
+            "AND (:query = '' OR COALESCE(note, '') LIKE '%' || :query || '%' OR COALESCE(merchant, '') LIKE '%' || :query || '%') " +
+            "AND (:walletId IS NULL OR walletId = :walletId) " +
+            "AND (:type IS NULL OR type = :type) " +
+            "AND (:categoryId IS NULL OR categoryId = :categoryId) " +
+            "AND (:minimumAmount IS NULL OR amountRupiah >= :minimumAmount) " +
+            "AND (:maximumAmount IS NULL OR amountRupiah <= :maximumAmount) " +
+            "AND (:startMillis IS NULL OR occurredAtEpochMillis >= :startMillis) " +
+            "AND (:endExclusiveMillis IS NULL OR occurredAtEpochMillis < :endExclusiveMillis) " +
+            "ORDER BY occurredAtEpochMillis DESC, id DESC")
+    PagingSource<Integer, TransactionEntity> searchTransactionHistory(String query, Long walletId, String type,
+            Long categoryId, Long minimumAmount, Long maximumAmount, Long startMillis, Long endExclusiveMillis);
+
+    @Query("SELECT * FROM transactions WHERE deletedAtEpochMillis IS NULL " +
+            "AND (:query = '' OR COALESCE(note, '') LIKE '%' || :query || '%' OR COALESCE(merchant, '') LIKE '%' || :query || '%') " +
+            "AND (:walletId IS NULL OR walletId = :walletId) AND (:type IS NULL OR type = :type) " +
+            "AND (:categoryId IS NULL OR categoryId = :categoryId) " +
+            "AND (:minimumAmount IS NULL OR amountRupiah >= :minimumAmount) " +
+            "AND (:maximumAmount IS NULL OR amountRupiah <= :maximumAmount) " +
+            "AND (:startMillis IS NULL OR occurredAtEpochMillis >= :startMillis) " +
+            "AND (:endExclusiveMillis IS NULL OR occurredAtEpochMillis < :endExclusiveMillis) " +
+            "ORDER BY occurredAtEpochMillis DESC, id DESC")
+    List<TransactionEntity> filteredTransactions(String query, Long walletId, String type, Long categoryId,
+            Long minimumAmount, Long maximumAmount, Long startMillis, Long endExclusiveMillis);
+
+    @Query("SELECT t.id AS id, t.occurredAtEpochMillis AS occurredAtEpochMillis, t.type AS type, " +
+            "t.amountRupiah AS amountRupiah, w.name AS walletName, c.name AS categoryName, " +
+            "t.merchant AS merchant, t.note AS note, " +
+            "CASE WHEN t.verifiedCheckpointId IS NULL THEN 0 ELSE 1 END AS verified, " +
+            "CASE WHEN EXISTS (SELECT 1 FROM attachments a WHERE a.ownerType = 'TRANSACTION' AND a.ownerId = t.id) THEN 1 ELSE 0 END AS hasAttachment, " +
+            "(SELECT GROUP_CONCAT(COALESCE(sc.name, 'Lainnya') || ': ' || s.amountRupiah, ' | ') " +
+            "FROM transaction_splits s LEFT JOIN categories sc ON sc.id = s.categoryId WHERE s.transactionId = t.id) AS splitSummary " +
+            "FROM transactions t LEFT JOIN wallets w ON w.id = t.walletId LEFT JOIN categories c ON c.id = t.categoryId " +
+            "WHERE t.deletedAtEpochMillis IS NULL AND t.occurredAtEpochMillis >= :startMillis " +
+            "AND t.occurredAtEpochMillis < :endExclusiveMillis ORDER BY t.occurredAtEpochMillis, t.id")
+    List<ExportTransactionRow> exportTransactionsBetween(long startMillis, long endExclusiveMillis);
+
     @Query("SELECT * FROM transactions WHERE deletedAtEpochMillis IS NULL ORDER BY occurredAtEpochMillis DESC, id DESC LIMIT 5")
     List<TransactionEntity> latestTransactions();
 
-    @Query("SELECT COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN s.amountRupiah ELSE 0 END), 0) AS incomeRupiah, COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN s.amountRupiah ELSE 0 END), 0) AS expenseRupiah FROM transaction_splits s INNER JOIN transactions t ON t.id = s.transactionId WHERE s.countsInReport = 1 AND t.type IN ('INCOME', 'EXPENSE') AND t.deletedAtEpochMillis IS NULL AND t.occurredAtEpochMillis >= :startMillis AND t.occurredAtEpochMillis < :endMillis")
+    @Query("SELECT COALESCE(SUM(CASE WHEN t.type = 'INCOME' OR (t.type = 'WRITE_OFF' AND c.kind = 'INCOME') THEN s.amountRupiah ELSE 0 END), 0) AS incomeRupiah, COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' OR (t.type = 'WRITE_OFF' AND c.kind = 'EXPENSE') THEN s.amountRupiah ELSE 0 END), 0) AS expenseRupiah FROM transaction_splits s INNER JOIN transactions t ON t.id = s.transactionId LEFT JOIN categories c ON c.id = s.categoryId WHERE s.countsInReport = 1 AND t.type IN ('INCOME', 'EXPENSE', 'WRITE_OFF') AND t.deletedAtEpochMillis IS NULL AND t.occurredAtEpochMillis >= :startMillis AND t.occurredAtEpochMillis < :endMillis")
     ReportTotals reportTotals(long startMillis, long endMillis);
+
+    @Query("SELECT s.categoryId AS categoryId, COALESCE(c.name, 'Lainnya') AS categoryName, SUM(s.amountRupiah) AS amountRupiah " +
+            "FROM transaction_splits s INNER JOIN transactions t ON t.id = s.transactionId " +
+            "LEFT JOIN categories c ON c.id = s.categoryId " +
+            "WHERE s.countsInReport = 1 AND (t.type = 'EXPENSE' OR (t.type = 'WRITE_OFF' AND c.kind = 'EXPENSE')) AND t.deletedAtEpochMillis IS NULL " +
+            "AND t.occurredAtEpochMillis >= :startMillis AND t.occurredAtEpochMillis < :endMillis " +
+            "GROUP BY s.categoryId ORDER BY amountRupiah DESC")
+    List<ReportCategoryTotal> reportExpenseCategories(long startMillis, long endMillis);
+
+    @Query("SELECT t.id AS id, t.occurredAtEpochMillis AS occurredAtEpochMillis, t.type AS type, " +
+            "s.amountRupiah AS amountRupiah, w.name AS walletName, c.name AS categoryName, " +
+            "t.merchant AS merchant, t.note AS note " +
+            "FROM transaction_splits s INNER JOIN transactions t ON t.id = s.transactionId " +
+            "LEFT JOIN wallets w ON w.id = t.walletId LEFT JOIN categories c ON c.id = s.categoryId " +
+            "WHERE s.categoryId = :categoryId AND s.countsInReport = 1 AND t.deletedAtEpochMillis IS NULL " +
+            "AND t.occurredAtEpochMillis >= :startMillis AND t.occurredAtEpochMillis < :endExclusiveMillis " +
+            "ORDER BY t.occurredAtEpochMillis DESC, t.id DESC")
+    List<ReportTransactionRow> reportTransactionsForCategory(long categoryId, long startMillis, long endExclusiveMillis);
 
     @Query("SELECT * FROM transactions WHERE id = :id")
     TransactionEntity transactionById(long id);
@@ -75,15 +133,48 @@ public interface TransactionDao {
     default ReconciliationResult resolveReconciliation(long walletId, long actualBalanceRupiah,
                                                         long occurredAtEpochMillis, String resolution,
                                                         List<ReconciliationPart> parts) {
+        return resolveReconciliationWithCashCounts(walletId, actualBalanceRupiah, occurredAtEpochMillis,
+                resolution, parts, Collections.emptyList(), Collections.emptyList());
+    }
+
+    @Transaction
+    default ReconciliationResult resolveReconciliationWithCashCounts(
+            long walletId,
+            long actualBalanceRupiah,
+            long occurredAtEpochMillis,
+            String resolution,
+            List<ReconciliationPart> parts,
+            List<CashDenominationCountInput> cashCounts,
+            List<ReconciliationItemInput> reconciliationItems) {
         if (actualBalanceRupiah < 0) throw new IllegalArgumentException("Saldo aktual tidak boleh negatif.");
-        if (!"UNTRACKED".equals(resolution) && !"MISSED".equals(resolution) && !"OPENING_BALANCE".equals(resolution))
+        if (!"UNTRACKED".equals(resolution) && !"MISSED".equals(resolution) &&
+                !"OPENING_BALANCE".equals(resolution) && !"MATCHED".equals(resolution))
             throw new IllegalArgumentException("Jenis resolusi tidak valid.");
-        if (parts == null || parts.isEmpty()) throw new IllegalArgumentException("Rincian resolusi wajib diisi.");
+        if (parts == null) throw new IllegalArgumentException("Rincian resolusi tidak valid.");
+        if (cashCounts == null) throw new IllegalArgumentException("Rincian pecahan uang tunai tidak valid.");
+        if (reconciliationItems == null) throw new IllegalArgumentException("Daftar cek mutasi tidak valid.");
+        HashSet<Long> denominations = new HashSet<>();
+        for (CashDenominationCountInput count : cashCounts) {
+            if (count.denominationRupiah <= 0 || count.pieceCount < 0)
+                throw new IllegalArgumentException("Pecahan harus positif dan jumlah lembar tidak boleh negatif.");
+            if (!denominations.add(count.denominationRupiah))
+                throw new IllegalArgumentException("Setiap pecahan hanya boleh dicatat sekali.");
+        }
+        HashSet<Long> checkedTransactionIds = new HashSet<>();
+        for (ReconciliationItemInput item : reconciliationItems) {
+            if (item.transactionId <= 0 || !checkedTransactionIds.add(item.transactionId) ||
+                    transactionMatchesWallet(item.transactionId, walletId, occurredAtEpochMillis) != 1)
+                throw new IllegalArgumentException("Transaksi cek mutasi tidak valid untuk dompet ini.");
+        }
         WalletEntity wallet = activeWallet(walletId);
         if (wallet == null) throw new IllegalArgumentException("Dompet aktif tidak ditemukan.");
         long originalInitialBalance = wallet.initialBalanceRupiah;
         long currentBalance = Math.addExact(originalInitialBalance, transactionEffect(walletId, occurredAtEpochMillis));
         long delta = Math.subtractExact(actualBalanceRupiah, currentBalance);
+        if (parts.isEmpty() && (!"MATCHED".equals(resolution) || delta != 0L))
+            throw new IllegalArgumentException("Rincian resolusi wajib diisi kecuali saldo sudah cocok.");
+        if ("MATCHED".equals(resolution) && (delta != 0L || !parts.isEmpty()))
+            throw new IllegalArgumentException("Cek mutasi tanpa resolusi hanya berlaku saat saldo cocok.");
         long resolved = 0;
         for (ReconciliationPart part : parts) {
             if (part.amountRupiah <= 0) throw new IllegalArgumentException("Nominal resolusi harus positif.");
@@ -132,9 +223,24 @@ public interface TransactionDao {
         if (resultingBalance != actualBalanceRupiah) throw new IllegalStateException("Saldo hasil rekonsiliasi tidak cocok.");
         long checkpointId = insertCheckpoint(new ReconciliationCheckpointEntity(walletId, occurredAtEpochMillis,
                 currentBalance, actualBalanceRupiah, delta, resolution));
+        for (CashDenominationCountInput count : cashCounts) {
+            if (count.pieceCount > 0)
+                insertCashDenominationCount(checkpointId, count.denominationRupiah, count.pieceCount);
+        }
+        for (ReconciliationItemInput item : reconciliationItems)
+            insertReconciliationItem(checkpointId, item.transactionId, item.matched);
         markTransactionsVerified(walletId, occurredAtEpochMillis, checkpointId);
         return new ReconciliationResult(currentBalance, actualBalanceRupiah, delta, resolution, checkpointId);
     }
+
+    @Query("INSERT INTO cash_denomination_counts (checkpointId, denominationRupiah, pieceCount) VALUES (:checkpointId, :denominationRupiah, :pieceCount)")
+    void insertCashDenominationCount(long checkpointId, long denominationRupiah, long pieceCount);
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE id = :transactionId AND walletId = :walletId AND deletedAtEpochMillis IS NULL AND occurredAtEpochMillis <= :checkedAt")
+    int transactionMatchesWallet(long transactionId, long walletId, long checkedAt);
+
+    @Query("INSERT INTO reconciliation_items (checkpointId, transactionId, matched) VALUES (:checkpointId, :transactionId, :matched)")
+    void insertReconciliationItem(long checkpointId, long transactionId, boolean matched);
 
     class ReconciliationPart {
         public final String type;
@@ -244,22 +350,40 @@ public interface TransactionDao {
     @Query("UPDATE transactions SET transferGroupId = :groupId WHERE id = :transactionId")
     int updateTransferGroup(long transactionId, long groupId);
 
-    @Transaction
     default long insertOrdinary(TransactionEntity transaction, boolean allowNegativeBalance) {
+        if (transaction.categoryId == null) throw new IllegalArgumentException("Kategori transaksi wajib dipilih.");
+        return insertOrdinaryWithSplits(transaction, allowNegativeBalance,
+                Collections.singletonList(new TransactionSplitDraft(
+                        transaction.amountRupiah, transaction.categoryId, true, true)));
+    }
+
+    @Transaction
+    default long insertOrdinaryWithSplits(TransactionEntity transaction, boolean allowNegativeBalance,
+                                          List<TransactionSplitDraft> splits) {
         if (transaction.type != com.illustravibes.arus.domain.TransactionType.INCOME &&
                 transaction.type != com.illustravibes.arus.domain.TransactionType.EXPENSE) {
             throw new IllegalArgumentException("Transaksi biasa hanya mendukung pemasukan atau pengeluaran.");
         }
         if (transaction.amountRupiah <= 0) throw new IllegalArgumentException("Nominal transaksi harus positif.");
         if (transaction.walletId == null) throw new IllegalArgumentException("Dompet transaksi wajib dipilih.");
-        if (transaction.categoryId == null) throw new IllegalArgumentException("Kategori transaksi wajib dipilih.");
+        if (splits == null || splits.isEmpty()) throw new IllegalArgumentException("Tambahkan setidaknya satu kategori split.");
         WalletEntity wallet = activeWallet(transaction.walletId);
         if (wallet == null) throw new IllegalArgumentException("Dompet aktif tidak ditemukan.");
-        CategoryEntity category = activeCategory(transaction.categoryId);
         String expectedKind = transaction.type == com.illustravibes.arus.domain.TransactionType.INCOME ? "INCOME" : "EXPENSE";
-        if (category == null || !expectedKind.equals(category.kind)) {
-            throw new IllegalArgumentException("Kategori tidak cocok dengan jenis transaksi.");
+        long splitTotal = 0L;
+        HashSet<Long> categories = new HashSet<>();
+        for (TransactionSplitDraft split : splits) {
+            if (split.amountRupiah <= 0) throw new IllegalArgumentException("Nominal setiap split harus positif.");
+            CategoryEntity category = activeCategory(split.categoryId);
+            if (category == null || !expectedKind.equals(category.kind))
+                throw new IllegalArgumentException("Kategori split tidak cocok dengan jenis transaksi.");
+            if (!categories.add(split.categoryId)) throw new IllegalArgumentException("Setiap kategori split hanya boleh digunakan sekali.");
+            splitTotal = Math.addExact(splitTotal, split.amountRupiah);
         }
+        if (splitTotal != transaction.amountRupiah)
+            throw new IllegalArgumentException("Total split harus sama dengan nominal transaksi.");
+        if (transaction.categoryId == null || !categories.contains(transaction.categoryId))
+            throw new IllegalArgumentException("Kategori utama harus ada di dalam split.");
         long now = System.currentTimeMillis();
         Long currentBalance = null;
         if (transaction.occurredAtEpochMillis <= now) {
@@ -271,7 +395,14 @@ public interface TransactionDao {
                 currentBalance != null && currentBalance < transaction.amountRupiah && !allowNegativeBalance) {
             throw new InsufficientBalanceException();
         }
-        return insertWithFullCategorySplit(transaction);
+        long transactionId = insert(transaction);
+        for (TransactionSplitDraft split : splits) {
+            insertSplitRow(transactionId, split.amountRupiah, split.categoryId,
+                    split.countsInReport, split.countsInBudget);
+        }
+        if (splitTotal(transactionId) != transaction.amountRupiah)
+            throw new IllegalStateException("Total split harus sama dengan nominal transaksi.");
+        return transactionId;
     }
 
     default long insertWithFullCategorySplit(TransactionEntity transaction) {
