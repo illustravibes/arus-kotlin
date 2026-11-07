@@ -25,7 +25,7 @@ Nomor baris sengaja tidak dicantumkan karena berubah selama refactor. Cari nama 
 - `MainActivity` mengelola `selectedDestination` dengan conditional dispatch. Routing bukan `NavHost`.
 - Bottom navigation menyediakan Beranda, Transaksi, Anggaran, dan Lainnya, dengan FAB tengah. Transaksi membuka Riwayat. `QuickAddActionSheet` memuat pengeluaran, pemasukan, transfer, scan struk, group order, dan cocokkan saldo.
 - Bottom navigation tetap tampil pada rute subfitur. Tombol kembali tambahan pada Anggaran sudah dihapus; Laporan masih memakai tombol kembali terpisah. Pola ini belum sesuai ketentuan plan bahwa subhalaman memakai tombol kembali tanpa bottom nav.
-- `MainActivity` masih memuat composable lama, termasuk `WalletManagement`, `CategoryManagement`, dan `BudgetManagement`. Tiga fungsi lama masih ada di source, tetapi rute aktif Dompet, Kategori, dan Anggaran kini memakai screen modular.
+- Layar modular Dompet, Kategori, dan Anggaran aktif dirutekan. Composable legacy `WalletManagement`, `CategoryManagement`, serta dialog form pembantunya telah dihapus dari `MainActivity`.
 
 ### 1.3 State dan akses data
 
@@ -63,7 +63,7 @@ Status berikut menilai struktur dan keterjangkauan source. Kesesuaian visual wir
 | S-10 Beranda | Ada, aktif | `HomeScreen` dirutekan dari `MainActivity`; menampilkan ringkasan, carousel dompet, aksi cepat, dan aktivitas. Visual belum diverifikasi. |
 | S-11 Rincian kekayaan bersih | Parsial | Rincian aset dan kewajiban muncul dalam dialog, bukan layar penuh. |
 | S-12 Tugas tertunda / inbox | Inbox terpusat belum ditemukan | Occurrence rutin tertunda tampil di `RecurringManagement`; routing tidak memiliki tujuan inbox khusus. |
-| S-20–23 Dompet | Screen modular dirutekan | `WalletListScreen` dibuka dari “Lihat semua” di Beranda; kartu dompet membuka detail langsung. Daftar membuka form tambah/edit dan detail; detail mendukung rekonsiliasi, transaksi, dan edit. Router menyimpan ID target edit untuk pemulihan setelah activity recreation. Screen `WalletManagement` lama masih ada di `MainActivity`, tetapi bukan cabang rute aktif Dompet. Tes AVD mencakup detail dompet terarsip dan edit setelah activity recreation; belum mencakup seluruh aksi daftar/detail modular. |
+| S-20–23 Dompet | Screen modular dirutekan | `WalletListScreen` dibuka dari “Lihat semua” di Beranda; kartu dompet membuka detail langsung. Daftar membuka form tambah/edit dan detail; detail mendukung rekonsiliasi, transaksi, dan edit. Router menyimpan ID target edit untuk pemulihan setelah activity recreation. Composable `WalletManagement` lama telah dihapus dari `MainActivity`. Tes AVD mencakup detail dompet terarsip dan edit setelah activity recreation; belum mencakup seluruh aksi daftar/detail modular. |
 | S-30 Riwayat, S-36 cari/filter | Ada, aktif | `TransactionHistoryScreen` dirutekan; pencarian dan filter berada di layar Riwayat. |
 | S-31 Form transaksi | Ada, aktif | `TransactionFormScreen` ditampilkan sebagai form transaksi. |
 | S-32 / S-32a Split kategori | Parsial | Split berada di dalam alur form transaksi; sheet terpisah belum ditemukan pada implementasi yang diperiksa. |
@@ -71,7 +71,7 @@ Status berikut menilai struktur dan keterjangkauan source. Kesesuaian visual wir
 | S-34 Transfer | Ada, aktif | `TransferScreen` dibuka dari state overlay; pemilihan dompet memakai picker. |
 | S-35 Template transfer | Parsial / alur belum diverifikasi | Source memuat “Tarik tunai”, “Bayar kredit”, dan “Top up”. Keberadaan pilihan belum membuktikan hasil setiap alur sesuai wireframe. |
 | S-37 / S-38 Picker kategori/dompet | Ada sebagai bottom sheet | `CategoryPickerSheet` dan `WalletPickerSheet` tersedia; perilaku visual belum diuji. |
-| S-40–42 Kategori | Screen modular dirutekan | `Kategori` dibuka dari Lainnya. `CategoryListScreen` membuka `CategoryFormScreen`, menyediakan aksi naik urutan, dan menyegarkan daftar setelah mutasi; `DeleteCategoryDialog` menangani migrasi transaksi dan transaksi split secara atomik atau pembersihan referensi tanpa kategori. Router menyimpan ID target edit setelah activity recreation. Layar `CategoryManagement` lama masih ada, tetapi bukan rute aktif Kategori. Tes regresi migrasi transaksi/split dan activity recreation ditambahkan ke suite instrumented test. |
+| S-40–42 Kategori | Screen modular dirutekan | `Kategori` dibuka dari Lainnya. `CategoryListScreen` membuka `CategoryFormScreen`, menyediakan aksi naik urutan, dan menyegarkan daftar setelah mutasi; `DeleteCategoryDialog` menangani migrasi transaksi dan transaksi split secara atomik atau pembersihan referensi tanpa kategori. Router menyimpan ID target edit setelah activity recreation. Composable `CategoryManagement` lama telah dihapus dari `MainActivity`. Tes regresi migrasi transaksi/split dan activity recreation ditambahkan ke suite instrumented test. |
 | S-50–51 Anggaran | Screen modular dirutekan | Tab Anggaran membuka `BudgetScreen`; tombol tambah mengganti daftar dengan `BudgetFormScreen`. Refresh list dipicu setelah penyimpanan. Progress dimuat di dispatcher IO; rincian sisa rollover dan seluruh transaksi periode tetap tampil. Layar `BudgetManagement` lama masih ada, tetapi bukan rute aktif Anggaran. Tes AVD mencakup buka/tutup form, simpan anggaran, dan refresh daftar; tampilan rollover serta seluruh transaksi belum memiliki tes UI khusus. |
 | S-52–53 Laporan | Ada di routing | `ReportScreen` dirutekan dari menu Lainnya. Detail visual belum diperiksa. |
 | S-60–63 Rutin | Ada di routing | `RecurringManagement` memuat daftar, occurrence tertunda, dan pengingat. Inbox terpusat S-12 belum ditemukan. |
@@ -119,7 +119,7 @@ Status berikut menilai struktur dan keterjangkauan source. Kesesuaian visual wir
 | 1. Audit | Audit source diperbarui. Validasi visual dan aksesibilitas perangkat belum selesai. |
 | 2. Fondasi | Token, tema, resource font, registry ikon, haptic wrapper, dan formatter nominal tersedia. Adopsi lintas layar dan aksesibilitas belum konsisten. |
 | 3. Komponen | Komponen reusable dan preview gallery tersedia. Komponen legacy masih ada. |
-| 4. Refactor layar | Screen modular Dompet, Kategori, dan Anggaran kini dirutekan. Layar legacy masih tersimpan; cakupan refactor lain belum tuntas. |
+| 4. Refactor layar | Screen modular Dompet, Kategori, dan Anggaran aktif dirutekan. Composable legacy `WalletManagement` dan `CategoryManagement` telah dibersihkan dari `MainActivity`; cakupan refactor layar lain berlanjut. |
 | 5. QA | `compileDebugKotlin`, `testDebugUnitTest` (29 test), `lintDebug` (0 error), dan `connectedDebugAndroidTest` (117 test di AVD `arus_api26`) lulus 100%. Screenshot AVD, TalkBack, font scale, serta pengukuran kontras belum dicatat. |
 
 Rujukan desain tetap `docs/design-system/arus-design-system-plan-v2.md`. Status source tidak menyatakan layar siap produksi; validasi visual dan QA perangkat tetap diperlukan.
