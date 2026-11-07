@@ -64,16 +64,21 @@ fun BudgetScreen(
     database: ArusDatabase,
     onBackClick: () -> Unit,
     onAddBudget: () -> Unit,
+    refreshKey: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     val haptics = rememberArusHaptics()
-    val budgets = remember { mutableStateListOf<BudgetEntity>() }
+    val budgets = remember { mutableStateListOf<Pair<BudgetEntity, com.illustravibes.arus.domain.BudgetProgress>>() }
     val categories = remember { mutableStateListOf<CategoryEntity>() }
 
     suspend fun refresh() {
         val data = withContext(Dispatchers.IO) {
-            database.budgetDao().advanceDueBudgets(LocalDate.now().toEpochDay())
-            database.budgetDao().activeBudgets() to database.categoryDao().activeCategories("EXPENSE")
+            val today = LocalDate.now()
+            val dao = database.budgetDao()
+            dao.advanceDueBudgets(today.toEpochDay())
+            dao.activeBudgets().map { budget ->
+                budget to com.illustravibes.arus.domain.BudgetProgress.load(dao, budget, today, ZoneId.systemDefault())
+            } to database.categoryDao().activeCategories("EXPENSE")
         }
         budgets.clear()
         budgets.addAll(data.first)
@@ -81,7 +86,7 @@ fun BudgetScreen(
         categories.addAll(data.second)
     }
 
-    LaunchedEffect(database) { refresh() }
+    LaunchedEffect(database, refreshKey) { refresh() }
 
     Column(
         modifier = modifier
@@ -109,12 +114,7 @@ fun BudgetScreen(
                     )
                 }
             } else {
-                items(budgets, key = { it.id }) { budget ->
-                    val progress = remember(budget.id, budgets.size) {
-                        com.illustravibes.arus.domain.BudgetProgress.load(
-                            database.budgetDao(), budget, LocalDate.now(), ZoneId.systemDefault()
-                        )
-                    }
+                items(budgets, key = { it.first.id }) { (budget, progress) ->
 
                     val cat = categories.firstOrNull { it.id == budget.categoryId }
                     val label = cat?.name ?: "Semua Kategori"
@@ -131,6 +131,13 @@ fun BudgetScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
 
+                        if (budget.rolloverEnabled) {
+                            BasicText(
+                                text = "Sisa dibawa: ${ArusFormatting.formatRupiah(progress.rolloverRupiah)}",
+                                style = ArusTheme.typography.bodySmall,
+                            )
+                        }
+
                         // Transaksi yang masuk ke anggaran ini
                         if (progress.transactions.isNotEmpty()) {
                             ArusCard(modifier = Modifier.fillMaxWidth(), contentPadding = 12.dp) {
@@ -139,7 +146,7 @@ fun BudgetScreen(
                                         text = "Transaksi Periode Ini (${progress.transactions.size})",
                                         style = ArusTheme.typography.label.copy(color = ArusTheme.colors.mutedForeground),
                                     )
-                                    progress.transactions.take(5).forEach { detail ->
+                                    progress.transactions.forEach { detail ->
                                         val date = Instant.ofEpochMilli(detail.occurredAtEpochMillis)
                                             .atZone(ZoneId.systemDefault()).toLocalDate()
                                         Row(

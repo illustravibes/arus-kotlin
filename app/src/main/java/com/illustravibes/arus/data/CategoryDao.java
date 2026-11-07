@@ -27,11 +27,24 @@ public interface CategoryDao {
     @Query("SELECT * FROM categories WHERE id = :id")
     CategoryEntity findById(long id);
 
-    @Query("SELECT COUNT(*) FROM transactions WHERE categoryId = :id AND deletedAtEpochMillis IS NULL")
+    @Query("SELECT COUNT(*) FROM transactions WHERE categoryId = :id")
     int activeTransactionCount(long id);
 
-    @Query("UPDATE transactions SET categoryId = :targetId WHERE categoryId = :sourceId AND deletedAtEpochMillis IS NULL")
-    int moveTransactions(long sourceId, long targetId);
+    @Query("SELECT COUNT(*) FROM transaction_splits WHERE categoryId = :id")
+    int splitReferenceCount(long id);
+
+    @Query("UPDATE transactions SET categoryId = :targetId WHERE categoryId = :sourceId")
+    int moveTransactionCategories(long sourceId, long targetId);
+
+    @Query("UPDATE transaction_splits SET categoryId = :targetId WHERE categoryId = :sourceId")
+    int moveSplitCategories(long sourceId, long targetId);
+
+    @androidx.room.Transaction
+    default int moveTransactions(long sourceId, long targetId) {
+        int moved = moveTransactionCategories(sourceId, targetId);
+        moveSplitCategories(sourceId, targetId);
+        return moved;
+    }
 
     @Query("SELECT COUNT(*) FROM wallets WHERE defaultExpenseCategoryId = :id")
     int walletReferenceCount(long id);
@@ -39,8 +52,18 @@ public interface CategoryDao {
     @Query("UPDATE wallets SET defaultExpenseCategoryId = NULL WHERE defaultExpenseCategoryId = :id")
     int clearWalletDefaults(long id);
 
-    @Query("UPDATE transactions SET categoryId = NULL WHERE categoryId = :id AND deletedAtEpochMillis IS NULL")
+    @Query("UPDATE transactions SET categoryId = NULL WHERE categoryId = :id")
     int clearTransactionCategories(long id);
+
+    @Query("UPDATE transaction_splits SET categoryId = NULL WHERE categoryId = :id")
+    int clearSplitCategories(long id);
+
+    @androidx.room.Transaction
+    default int clearAllTransactionCategories(long id) {
+        int cleared = clearTransactionCategories(id);
+        clearSplitCategories(id);
+        return cleared;
+    }
 
     @Query("UPDATE categories SET isArchived = 1 WHERE id = :id AND isSystem = 0")
     int archive(long id);

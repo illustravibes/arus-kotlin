@@ -57,10 +57,12 @@ fun DeleteCategoryDialog(
     }
 
     LaunchedEffect(sourceCategory.id) {
-        val targets = withContext(Dispatchers.IO) {
-            database.categoryDao().activeTransactionCount(sourceCategory.id)
+        val hasReferences = withContext(Dispatchers.IO) {
+            database.categoryDao().activeTransactionCount(sourceCategory.id) > 0 ||
+                database.categoryDao().splitReferenceCount(sourceCategory.id) > 0 ||
+                database.categoryDao().walletReferenceCount(sourceCategory.id) > 0
         }
-        if (targets == 0 && database.categoryDao().walletReferenceCount(sourceCategory.id) == 0) {
+        if (!hasReferences) {
             deleteWithoutMove = true
         }
     }
@@ -82,7 +84,7 @@ fun DeleteCategoryDialog(
                         message = "Kategori sistem tidak dapat dihapus."
                     } else {
                         moveTarget?.let { dao.moveTransactions(sourceCategory.id, it.id) }
-                        if (deleteWithoutMove) dao.clearTransactionCategories(sourceCategory.id)
+                        if (deleteWithoutMove) dao.clearAllTransactionCategories(sourceCategory.id)
                         dao.clearWalletDefaults(sourceCategory.id)
                         if (dao.walletReferenceCount(sourceCategory.id) > 0) {
                             message = "Kategori masih dipakai sebagai default dompet."

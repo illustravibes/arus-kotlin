@@ -62,6 +62,7 @@ fun CategoryListScreen(
     onAddCategory: (String) -> Unit,
     onEditCategory: (CategoryEntity) -> Unit,
     onDeleteCategory: (CategoryEntity) -> Unit,
+    refreshKey: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -86,11 +87,11 @@ fun CategoryListScreen(
         }
     }
 
-    LaunchedEffect(database) { refresh() }
+    LaunchedEffect(database, refreshKey) { refresh() }
 
-    val filtered = categories.filter {
-        it.kind == kind && !it.isArchived &&
-            (search.isBlank() || it.name.contains(search.trim(), ignoreCase = true))
+    val orderedCategories = categories.filter { it.kind == kind && !it.isArchived }
+    val filtered = orderedCategories.filter {
+        search.isBlank() || it.name.contains(search.trim(), ignoreCase = true)
     }
 
     Column(
@@ -182,6 +183,22 @@ fun CategoryListScreen(
                             }
 
                             if (!cat.isSystem) {
+                                ArusTertiaryButton(
+                                    text = "Naik",
+                                    enabled = orderedCategories.firstOrNull()?.id != cat.id,
+                                    onClick = {
+                                        val previous = orderedCategories.getOrNull(orderedCategories.indexOf(cat) - 1)
+                                        if (previous != null) scope.launch {
+                                            withContext(Dispatchers.IO) {
+                                                database.runInTransaction {
+                                                    database.categoryDao().updateSortOrder(cat.id, previous.sortOrder)
+                                                    database.categoryDao().updateSortOrder(previous.id, cat.sortOrder)
+                                                }
+                                            }
+                                            refresh()
+                                        }
+                                    },
+                                )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),

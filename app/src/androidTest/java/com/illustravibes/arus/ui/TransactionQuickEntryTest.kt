@@ -1,5 +1,6 @@
 package com.illustravibes.arus.ui
 
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertTextEquals
@@ -133,15 +134,16 @@ class TransactionQuickEntryTest {
         assertEquals("Belanja arsip", archivedTransactions.single().note)
 
         composeRule.onNodeWithText("Lihat semua ›").performClick()
-        composeRule.onNodeWithText("Dompet terarsip (1)").performClick()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Terarsip (1)").fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNodeWithText("Terarsip (1)").performClick()
         composeRule.onNodeWithText("Dompet Arsip Test").performClick()
 
-        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Riwayat · 1 transaksi").fetchSemanticsNodes().isNotEmpty() }
-        composeRule.onNodeWithText("Saldo saat ini").assertExists()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("RIWAYAT TRANSAKSI (1)").fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNodeWithText("Saldo saat ini", substring = true).assertExists()
         composeRule.onNodeWithText("Rp 4.500").assertExists()
         composeRule.onNodeWithText("Belanja arsip", substring = true).assertExists()
-        composeRule.onNodeWithText("Tutup").performClick()
-        composeRule.onNodeWithText("‹ Dompet aktif").performClick()
+        composeRule.onNodeWithContentDescription("Kembali").performClick()
+        composeRule.onNodeWithText("Aktif (", substring = true).performClick()
         composeRule.onNodeWithText("Dompet Arsip Test").assertDoesNotExist()
     }
 
@@ -367,10 +369,124 @@ class TransactionQuickEntryTest {
     @Test
     fun categoryManagementShowsListsAndCategoryForm() {
         composeRule.onNodeWithText("Lainnya").performClick()
-        composeRule.onNodeWithText("Tambah kategori").assertIsDisplayed()
-        composeRule.onNodeWithText("Tambah kategori").performClick()
+        composeRule.onNodeWithText("Kategori").performScrollTo().performClick()
+        composeRule.onNodeWithText("+ Tambah kategori").assertIsDisplayed().performClick()
         composeRule.onNodeWithText("Kategori baru").assertIsDisplayed()
-        composeRule.onNodeWithText("Batal").performClick()
+        composeRule.onNodeWithContentDescription("Kembali").performClick()
+        composeRule.onNodeWithText("+ Tambah kategori").assertIsDisplayed()
+    }
+
+    @Test
+    fun categorySaveReturnsToListWithNewCategory() {
+        composeRule.onNodeWithText("Lainnya").performClick()
+        composeRule.onNodeWithText("Kategori").performScrollTo().performClick()
+        composeRule.onNodeWithText("+ Tambah kategori").performClick()
+        composeRule.onNodeWithTag("arus_text_input").performTextInput("Kategori Routing Test")
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val manager = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            manager.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Simpan").performClick()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithTag("arus_search_input").fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNodeWithTag("arus_search_input").performTextInput("Kategori Routing Test")
+        val categoryLabel = androidx.compose.ui.test.hasText("Kategori Routing Test") and !hasSetTextAction()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodes(categoryLabel).fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNode(categoryLabel).assertIsDisplayed()
+        assertEquals(1, database.categoryDao().allCategories().count { it.name == "Kategori Routing Test" })
+    }
+
+    @Test
+    fun categoryDeleteMigratesTransactionsAndRefreshesList() {
+        val sourceId = database.categoryDao().insert(CategoryEntity("Kategori Hapus Test", "EXPENSE", "tag", 0, false, false, 100))
+        val targetId = database.categoryDao().insert(CategoryEntity("Kategori Tujuan Test", "EXPENSE", "tag", 0, false, false, -100))
+        val wallet = database.walletDao().activeWallets().first()
+        val transactionId = database.transactionDao().insertOrdinary(
+            TransactionEntity(com.illustravibes.arus.domain.TransactionType.EXPENSE, wallet.id,
+                500, null, sourceId, System.currentTimeMillis(), "Migrasi kategori", null, null), true,
+        )
+        composeRule.onNodeWithText("Lainnya").performClick()
+        composeRule.onNodeWithText("Kategori").performScrollTo().performClick()
+        composeRule.onNodeWithTag("arus_search_input").performTextInput("Kategori Hapus Test")
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Hapus").fetchSemanticsNodes().size == 1 }
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val manager = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            manager.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Hapus").performClick()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Konfirmasi hapus").fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNodeWithText("Kategori Tujuan Test").performClick()
+        composeRule.onNodeWithText("Konfirmasi hapus").performClick()
+        composeRule.waitUntil(10_000) { database.categoryDao().findById(sourceId) == null }
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Kategori tidak ditemukan").fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(targetId, database.transactionDao().activeTransactions().first { it.id == transactionId }.categoryId)
+        assertEquals(targetId, database.transactionSplitDao().splitsForTransaction(transactionId).single().categoryId)
+        assertEquals(500L, database.transactionSplitDao().splitTotal(transactionId))
+    }
+
+    @Test
+    fun walletEditKeepsTargetAfterActivityRecreation() {
+        val original = database.walletDao().activeWallets().first()
+        val count = database.walletDao().activeWalletCount()
+        composeRule.onNodeWithText("Lihat semua ›").performClick()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Edit").fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onAllNodesWithText("Edit")[0].performClick()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Edit dompet").fetchSemanticsNodes().isNotEmpty() }
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Edit dompet").fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNodeWithTag("arus_text_input").performTextClearance()
+        composeRule.onNodeWithTag("arus_text_input").performTextInput("Dompet Setelah Rotasi")
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val manager = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            manager.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Simpan").performClick()
+        composeRule.waitUntil(10_000) { database.walletDao().findById(original.id).name == "Dompet Setelah Rotasi" }
+        assertEquals(count, database.walletDao().activeWalletCount())
+    }
+
+    @Test
+    fun categoryEditKeepsTargetAfterActivityRecreation() {
+        val id = database.categoryDao().insert(CategoryEntity("Kategori Sebelum Rotasi", "EXPENSE", "tag", 0, false, false, 100))
+        val count = database.categoryDao().allCategories().size
+        composeRule.onNodeWithText("Lainnya").performClick()
+        composeRule.onNodeWithText("Kategori").performScrollTo().performClick()
+        composeRule.onNodeWithTag("arus_search_input").performTextInput("Kategori Sebelum Rotasi")
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Edit").fetchSemanticsNodes().size == 1 }
+        composeRule.onNodeWithText("Edit").performClick()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Edit kategori").fetchSemanticsNodes().isNotEmpty() }
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Edit kategori").fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNodeWithTag("arus_text_input").performTextClearance()
+        composeRule.onNodeWithTag("arus_text_input").performTextInput("Kategori Setelah Rotasi")
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val manager = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            manager.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Simpan").performClick()
+        composeRule.waitUntil(10_000) { database.categoryDao().findById(id).name == "Kategori Setelah Rotasi" }
+        assertEquals(count, database.categoryDao().allCategories().size)
+    }
+
+    @Test
+    fun budgetSaveRefreshesListAndShowsPersistedProgress() {
+        composeRule.onNodeWithText("Anggaran").performClick()
+        composeRule.onNodeWithText("+ Buat anggaran").performClick()
+        composeRule.onNodeWithTag("arus_amount_input").performScrollTo().performTextInput("200000")
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val manager = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            manager.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Simpan anggaran").performClick()
+        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Anggaran Total").fetchSemanticsNodes().isNotEmpty() }
+        composeRule.onNodeWithText("Anggaran Total").assertIsDisplayed()
+        val saved = database.budgetDao().activeBudgets().single()
+        assertEquals(200_000L, saved.amountRupiah)
+        composeRule.onNodeWithText("Belum ada anggaran").assertDoesNotExist()
     }
 
     @Test
@@ -470,14 +586,14 @@ class TransactionQuickEntryTest {
         composeRule.onAllNodesWithText("Anggaran").assertCountEquals(2)
         composeRule.onAllNodesWithText("Laporan").assertCountEquals(2)
         composeRule.onAllNodesWithText("Anggaran")[0].performClick()
-        composeRule.onNodeWithText("Anggaran berjalan").assertExists()
-        composeRule.onNodeWithText("Tambah").assertExists()
-        composeRule.onNodeWithText("Nama anggaran").assertDoesNotExist()
-        composeRule.onNodeWithText("Belum ada anggaran berjalan.").assertExists()
-        composeRule.onNodeWithText("Tambah").performClick()
-        composeRule.onNodeWithText("Nama anggaran").assertExists()
-        composeRule.onNodeWithText("Batal").performClick()
-        composeRule.onNodeWithText("‹ Kembali").performClick()
+        composeRule.onNodeWithText("+ Buat anggaran").assertIsDisplayed()
+        composeRule.onNodeWithText("Nama Anggaran (opsional)").assertDoesNotExist()
+        composeRule.onNodeWithText("Belum ada anggaran").assertExists()
+        composeRule.onNodeWithText("+ Buat anggaran").performClick()
+        composeRule.onNodeWithText("Cakupan Anggaran").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Kembali").performClick()
+        composeRule.onNodeWithText("+ Buat anggaran").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Kembali").performClick()
         composeRule.onAllNodesWithText("Laporan")[0].performClick()
         composeRule.onNodeWithText("Selisih:", substring = true).assertExists()
         composeRule.onNodeWithText("‹ Kembali").performClick()
