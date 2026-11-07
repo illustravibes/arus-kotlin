@@ -115,6 +115,14 @@ import com.illustravibes.arus.ui.screens.TransactionDetailScreen
 import com.illustravibes.arus.ui.screens.TransactionFormScreen
 import com.illustravibes.arus.ui.screens.TransactionHistoryScreen
 import com.illustravibes.arus.ui.screens.TransferScreen
+import com.illustravibes.arus.ui.screens.WalletListScreen
+import com.illustravibes.arus.ui.screens.WalletFormScreen
+import com.illustravibes.arus.ui.screens.WalletDetailScreen
+import com.illustravibes.arus.ui.screens.CategoryListScreen
+import com.illustravibes.arus.ui.screens.CategoryFormScreen
+import com.illustravibes.arus.ui.screens.DeleteCategoryDialog
+import com.illustravibes.arus.ui.screens.BudgetScreen
+import com.illustravibes.arus.ui.screens.BudgetFormScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -315,6 +323,21 @@ class MainActivity : FragmentActivity() {
                 var showUndo by rememberSaveable { mutableStateOf(false) }
                 var historySelected by rememberSaveable { mutableStateOf<Long?>(null) }
                 var checkpointWalletId by rememberSaveable { mutableStateOf<Long?>(null) }
+                var walletDetailId by rememberSaveable { mutableStateOf<Long?>(null) }
+                var walletEditingId by rememberSaveable { mutableStateOf<Long?>(null) }
+                var categoryEditingId by rememberSaveable { mutableStateOf<Long?>(null) }
+                val walletEditing by androidx.compose.runtime.produceState<WalletEntity?>(null, activeDatabase, walletEditingId) {
+                    value = withContext(Dispatchers.IO) { walletEditingId?.let { activeDatabase.walletDao().findById(it) } }
+                }
+                val categoryEditing by androidx.compose.runtime.produceState<CategoryEntity?>(null, activeDatabase, categoryEditingId) {
+                    value = withContext(Dispatchers.IO) { categoryEditingId?.let { activeDatabase.categoryDao().findById(it) } }
+                }
+                var categoryInitialKind by rememberSaveable { mutableStateOf("EXPENSE") }
+                var categoryDeleteSource by remember { mutableStateOf<CategoryEntity?>(null) }
+                var categoryDeleteOptions by remember { mutableStateOf(emptyList<CategoryEntity>()) }
+                var categoryRefreshKey by rememberSaveable { mutableStateOf(0) }
+                var budgetRefreshKey by rememberSaveable { mutableStateOf(0) }
+                var budgetFormOpen by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(undoTransactionId, undoDeadline) {
                     if (undoTransactionId != null) {
                         showUndo = true
@@ -402,6 +425,70 @@ class MainActivity : FragmentActivity() {
                                 )
                                 else if (selectedDestination == "Checkpoint") CheckpointHistory(activeDatabase, selectedWalletId = checkpointWalletId,
                                     onWalletSelected = { checkpointWalletId = it }, onBack = { selectedDestination = "Riwayat" })
+                                else if (selectedDestination == "Dompet") WalletListScreen(
+                                    database = activeDatabase,
+                                    onBackClick = { selectedDestination = "Beranda" },
+                                    onAddWallet = { walletEditingId = null; selectedDestination = "FormDompet" },
+                                    onEditWallet = { walletEditingId = it.id; selectedDestination = "FormDompet" },
+                                    onWalletDetail = { walletDetailId = it; selectedDestination = "DetailDompet" },
+                                    onReconciliation = { reconciliationWallet = it },
+                                )
+                                else if (selectedDestination == "FormDompet") {
+                                    val target = walletEditing?.takeIf { it.id == walletEditingId }
+                                    if (walletEditingId == null || target != null) WalletFormScreen(
+                                        database = activeDatabase,
+                                        wallet = target,
+                                        onDismiss = { walletEditingId = null; selectedDestination = "Dompet" },
+                                        onSaved = { walletEditingId = null; selectedDestination = "Dompet" },
+                                    ) else Text("Memuat dompet…")
+                                }
+                                else if (selectedDestination == "DetailDompet") {
+                                    val walletId = walletDetailId
+                                    if (walletId == null) selectedDestination = "Dompet"
+                                    else WalletDetailScreen(
+                                        database = activeDatabase,
+                                        walletId = walletId,
+                                        onDismiss = { walletDetailId = null; selectedDestination = "Dompet" },
+                                        onTransactionClick = { historySelected = it },
+                                        onReconciliation = { reconciliationWallet = it },
+                                        onEditWallet = { walletEditingId = it.id; selectedDestination = "FormDompet" },
+                                    )
+                                }
+                                else if (selectedDestination == "Kategori") CategoryListScreen(
+                                    database = activeDatabase,
+                                    onBackClick = { selectedDestination = "Lainnya" },
+                                    refreshKey = categoryRefreshKey,
+                                    onAddCategory = { kind -> categoryInitialKind = kind; categoryEditingId = null; selectedDestination = "FormKategori" },
+                                    onEditCategory = { categoryEditingId = it.id; categoryInitialKind = it.kind; selectedDestination = "FormKategori" },
+                                    onDeleteCategory = { category ->
+                                        scope.launch {
+                                            categoryDeleteOptions = withContext(Dispatchers.IO) { activeDatabase.categoryDao().allCategories() }
+                                            categoryDeleteSource = category
+                                        }
+                                    },
+                                )
+                                else if (selectedDestination == "FormKategori") {
+                                    val target = categoryEditing?.takeIf { it.id == categoryEditingId }
+                                    if (categoryEditingId == null || target != null) CategoryFormScreen(
+                                        database = activeDatabase,
+                                        category = target,
+                                        initialKind = categoryInitialKind,
+                                        onDismiss = { categoryEditingId = null; selectedDestination = "Kategori" },
+                                        onSaved = { categoryRefreshKey++; categoryEditingId = null; selectedDestination = "Kategori" },
+                                    ) else Text("Memuat kategori…")
+                                }
+                                else if (selectedDestination == "Anggaran") {
+                                    if (budgetFormOpen) BudgetFormScreen(
+                                        database = activeDatabase,
+                                        onDismiss = { budgetFormOpen = false },
+                                        onSaved = { budgetRefreshKey++; budgetFormOpen = false },
+                                    ) else BudgetScreen(
+                                        database = activeDatabase,
+                                        onBackClick = { selectedDestination = "Lainnya" },
+                                        onAddBudget = { budgetFormOpen = true },
+                                        refreshKey = budgetRefreshKey,
+                                    )
+                                }
                                 else if (selectedDestination == "Laporan") ReportScreen(database = activeDatabase, periodStartDay = periodStartDay)
                                 else if (selectedDestination == "Pengaturan") AppSettingsManagement(
                                     themeMode = themeMode,
@@ -426,8 +513,6 @@ class MainActivity : FragmentActivity() {
                                     },
                                     onDismiss = { selectedDestination = "Lainnya" },
                                 )
-                                else if (selectedDestination == "Anggaran") BudgetManagement(database = activeDatabase)
-                                else if (selectedDestination == "Dompet") WalletManagement(database = activeDatabase)
                                 else if (selectedDestination == "Lainnya") {
                                      Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(ArusSpacing.Medium)) {
                                         Text("Lainnya", style = ArusTheme.typography.headline)
@@ -437,8 +522,7 @@ class MainActivity : FragmentActivity() {
                                           ArusButton(onClick = { selectedDestination = "Rutin" }, kind = ArusButtonKind.Outline) { Text("Transaksi rutin") }
                                           ArusButton(onClick = { selectedDestination = "Utang-Piutang" }, kind = ArusButtonKind.Outline) { Text("Utang-Piutang") }
                                            ArusButton(onClick = { selectedDestination = "Group Order" }, kind = ArusButtonKind.Outline) { Text("Group Order") }
-                                          Text("Kategori", style = ArusTheme.typography.headline)
-                                           CategoryManagement(database = activeDatabase)
+                                          ArusButton(onClick = { selectedDestination = "Kategori" }, kind = ArusButtonKind.Outline) { Text("Kategori") }
                                            ArusButton(onClick = { selectedDestination = "Pengaturan" }, kind = ArusButtonKind.Outline) { Text("Pengaturan") }
                                            ArusButton(onClick = { selectedDestination = "Ekspor data" }, kind = ArusButtonKind.Outline) { Text("Ekspor data") }
                                            ArusButton(onClick = { selectedDestination = "Backup & Restore" }, kind = ArusButtonKind.Outline) { Text("Backup & Restore") }
@@ -448,7 +532,7 @@ class MainActivity : FragmentActivity() {
                                     database = activeDatabase,
                                     onNetWorthDetail = { },
                                     onWallets = { selectedDestination = "Dompet" },
-                                    onWallet = { _ -> selectedDestination = "Dompet" },
+                                    onWallet = { walletDetailId = it; selectedDestination = "DetailDompet" },
                                     onTransaction = { historySelected = it },
                                     onExpense = { transactionType = "EXPENSE" },
                                     onIncome = { transactionType = "INCOME" },
@@ -547,7 +631,16 @@ class MainActivity : FragmentActivity() {
                     )
                 }
                 if (transferOpen) TransferScreen(activeDatabase, onDismiss = { transferOpen = false })
-                if (selectedDestination == "Anggaran" || selectedDestination == "Laporan") {
+                categoryDeleteSource?.let { source ->
+                    DeleteCategoryDialog(
+                        database = activeDatabase,
+                        sourceCategory = source,
+                        allCategories = categoryDeleteOptions,
+                        onDismiss = { categoryDeleteSource = null },
+                        onDeleted = { categoryRefreshKey++; categoryDeleteSource = null },
+                    )
+                }
+                if (selectedDestination == "Laporan") {
                     ArusButton(onClick = { selectedDestination = "Lainnya" }, kind = ArusButtonKind.Outline) { Text("‹ Kembali") }
                 }
                 historySelected?.let { id -> TransactionDetailScreen(activeDatabase, id, onDismiss = { historySelected = null }) }
@@ -2064,7 +2157,7 @@ private fun CategoryManagement(database: ArusDatabase) {
                             if (sourceNow == null || sourceNow.isSystem) message = "Kategori sistem tidak dapat dihapus."
                             else {
                                 moveTarget?.let { dao.moveTransactions(source.id, it.id) }
-                                if (deleteWithoutMove) dao.clearTransactionCategories(source.id)
+                                if (deleteWithoutMove) dao.clearAllTransactionCategories(source.id)
                                 dao.clearWalletDefaults(source.id)
                                 if (dao.walletReferenceCount(source.id) > 0) message = "Kategori masih dipakai sebagai default."
                                 else if (dao.deleteCustom(source.id) != 1) message = "Kategori gagal dihapus."
