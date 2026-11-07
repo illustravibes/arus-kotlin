@@ -107,6 +107,14 @@ import com.illustravibes.arus.ui.designsystem.ArusIconCode
 import com.illustravibes.arus.ui.designsystem.categoryIcon
 import com.illustravibes.arus.ui.designsystem.ArusRadius
 import com.illustravibes.arus.ui.designsystem.ArusSpacing
+import com.illustravibes.arus.ui.designsystem.ArusBottomNavigation
+import com.illustravibes.arus.ui.screens.HomeScreen
+import com.illustravibes.arus.ui.screens.QuickAddActionSheet
+import com.illustravibes.arus.ui.screens.ReconciliationScreen
+import com.illustravibes.arus.ui.screens.TransactionDetailScreen
+import com.illustravibes.arus.ui.screens.TransactionFormScreen
+import com.illustravibes.arus.ui.screens.TransactionHistoryScreen
+import com.illustravibes.arus.ui.screens.TransferScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -296,6 +304,8 @@ class MainActivity : FragmentActivity() {
                 var selectedDestination by rememberSaveable { mutableStateOf("Beranda") }
                 var transactionType by rememberSaveable { mutableStateOf<String?>(null) }
                 var transferOpen by rememberSaveable { mutableStateOf(false) }
+                var quickAddOpen by rememberSaveable { mutableStateOf(false) }
+                var reconciliationWallet by remember { mutableStateOf<WalletEntity?>(null) }
                 var receiptReview by remember { mutableStateOf<ReceiptOcrReview?>(null) }
                 var receiptAttachmentId by rememberSaveable { mutableStateOf<Long?>(null) }
                 var groupOrderDraftToOpen by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -314,14 +324,10 @@ class MainActivity : FragmentActivity() {
                         undoDeletedAt = null
                     }
                 }
-                Box(modifier = Modifier.fillMaxSize().background(ArusTheme.colors.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
+                Box(modifier = Modifier.fillMaxSize().background(ArusTheme.colors.background)) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        Box(modifier = Modifier.weight(1f).fillMaxSize()) {
-                            Column(
-                                modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(ArusSpacing.Medium),
-                            ) {
-                                if (selectedDestination == "Backup & Restore") BackupRestoreManagement(
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            if (selectedDestination == "Backup & Restore") BackupRestoreManagement(
                                     database = activeDatabase,
                                     onDismiss = { selectedDestination = "Lainnya" },
                                     onDatabaseReplaced = { restored ->
@@ -388,7 +394,12 @@ class MainActivity : FragmentActivity() {
                                 )
                                 else if (selectedDestination == "Utang-Piutang") DebtManagement(activeDatabase)
                                 else if (selectedDestination == "Rutin") RecurringManagement(activeDatabase)
-                                else if (selectedDestination == "Riwayat") TransactionHistory(activeDatabase, onSelect = { historySelected = it }, onTransfer = { transferOpen = true }, onCheckpoints = { selectedDestination = "Checkpoint" })
+                                else if (selectedDestination == "Riwayat") TransactionHistoryScreen(
+                                    database = activeDatabase,
+                                    onSelect = { historySelected = it },
+                                    onTransfer = { transferOpen = true },
+                                    onCheckpoints = { selectedDestination = "Checkpoint" },
+                                )
                                 else if (selectedDestination == "Checkpoint") CheckpointHistory(activeDatabase, selectedWalletId = checkpointWalletId,
                                     onWalletSelected = { checkpointWalletId = it }, onBack = { selectedDestination = "Riwayat" })
                                 else if (selectedDestination == "Laporan") ReportScreen(database = activeDatabase, periodStartDay = periodStartDay)
@@ -433,8 +444,9 @@ class MainActivity : FragmentActivity() {
                                            ArusButton(onClick = { selectedDestination = "Backup & Restore" }, kind = ArusButtonKind.Outline) { Text("Backup & Restore") }
                                      }
                                 }
-                                else HomeOverview(activeDatabase,
-                                    onNetWorth = { },
+                                else HomeScreen(
+                                    database = activeDatabase,
+                                    onNetWorthDetail = { },
                                     onWallets = { selectedDestination = "Dompet" },
                                     onWallet = { _ -> selectedDestination = "Dompet" },
                                     onTransaction = { historySelected = it },
@@ -442,8 +454,8 @@ class MainActivity : FragmentActivity() {
                                     onIncome = { transactionType = "INCOME" },
                                     onTransfer = { transferOpen = true },
                                     onScanReceipt = { selectedDestination = "Scan Struk" },
+                                    onReconciliation = { reconciliationWallet = it },
                                 )
-                            }
                             if (showUndo && undoTransactionId != null) {
                                 androidx.compose.foundation.layout.Row(
                                     Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(ArusTheme.colors.surface).padding(ArusSpacing.Medium),
@@ -470,53 +482,90 @@ class MainActivity : FragmentActivity() {
                                 }
                             }
                         }
-                        ArusNavigationBar {
-                            (if (selectedDestination == "Checkpoint") {
-                                listOf("Beranda", "Checkpoint", "Dompet", "Anggaran", "Laporan", "Lainnya")
-                            } else listOf("Beranda", "Riwayat", "Dompet", "Anggaran", "Laporan", "Lainnya")).forEach { destination ->
-                                ArusNavigationItem(
-                                    selected = selectedDestination == destination,
-                                    onClick = { selectedDestination = destination },
-                                    icon = {
-                                        ArusIcon(when (destination) {
-                                            "Beranda" -> ArusIconCode.HOUSE
-                                            "Riwayat" -> ArusIconCode.CLOCK
-                                            "Dompet" -> ArusIconCode.WALLET
-                                            "Anggaran" -> ArusIconCode.PIGGY_BANK
-                                            "Laporan" -> ArusIconCode.MONEY_BILL
-                                            "Checkpoint" -> ArusIconCode.CLOCK
-                                            else -> ArusIconCode.ELLIPSIS
-                                        })
-                                    },
-                                    label = { Text(if (destination == "Checkpoint") "Rekon" else destination) },
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                        }
+                        ArusBottomNavigation(
+                            selectedTab = if (selectedDestination == "Riwayat") "Transaksi" else selectedDestination,
+                            onTabSelected = { destination ->
+                                selectedDestination = if (destination == "Transaksi") "Riwayat" else destination
+                            },
+                            onFabClick = {
+                                quickAddOpen = true
+                            },
+                        )
                     }
                 }
+                if (quickAddOpen) {
+                    QuickAddActionSheet(
+                        onDismiss = { quickAddOpen = false },
+                        onExpense = {
+                            quickAddOpen = false
+                            transactionType = "EXPENSE"
+                        },
+                        onIncome = {
+                            quickAddOpen = false
+                            transactionType = "INCOME"
+                        },
+                        onTransfer = {
+                            quickAddOpen = false
+                            transferOpen = true
+                        },
+                        onScanReceipt = {
+                            quickAddOpen = false
+                            selectedDestination = "Scan Struk"
+                        },
+                        onGroupOrder = {
+                            quickAddOpen = false
+                            selectedDestination = "Group Order"
+                        },
+                        onReconciliation = {
+                            quickAddOpen = false
+                            scope.launch {
+                                val wallet = withContext(Dispatchers.IO) {
+                                    activeDatabase.walletDao().activeWallets().firstOrNull()
+                                }
+                                if (wallet != null) reconciliationWallet = wallet
+                                else selectedDestination = "Dompet"
+                            }
+                        },
+                    )
+                }
                 transactionType?.let { type ->
-                    TransactionQuickEntry(
-                        activeDatabase,
-                        TransactionType.valueOf(type),
+                    TransactionFormScreen(
+                        database = activeDatabase,
+                        initialType = TransactionType.valueOf(type),
                         onDismiss = { transactionType = null; receiptReview = null; receiptAttachmentId = null },
                         onTypeChange = { transactionType = it.name },
                         initialReceipt = receiptReview,
                         receiptAttachmentId = receiptAttachmentId,
-                    ) { id, dismiss ->
-                        undoTransactionId = id
-                        undoDeletedAt = null
-                        undoDeadline = System.currentTimeMillis() + 5_000
-                        receiptReview = null
-                        receiptAttachmentId = null
-                        if (dismiss) transactionType = null
-                    }
+                        onSaved = { id: Long, dismiss: Boolean ->
+                            undoTransactionId = id
+                            undoDeletedAt = null
+                            undoDeadline = System.currentTimeMillis() + 5_000
+                            receiptReview = null
+                            receiptAttachmentId = null
+                            if (dismiss) transactionType = null
+                        },
+                    )
                 }
-                if (transferOpen) TransferEntry(activeDatabase, onDismiss = { transferOpen = false })
+                if (transferOpen) TransferScreen(activeDatabase, onDismiss = { transferOpen = false })
                 if (selectedDestination == "Anggaran" || selectedDestination == "Laporan") {
                     ArusButton(onClick = { selectedDestination = "Lainnya" }, kind = ArusButtonKind.Outline) { Text("‹ Kembali") }
                 }
-                historySelected?.let { id -> TransactionDetails(activeDatabase, id, onDismiss = { historySelected = null }) }
+                historySelected?.let { id -> TransactionDetailScreen(activeDatabase, id, onDismiss = { historySelected = null }) }
+                reconciliationWallet?.let { wallet ->
+                    var recordedBalance by remember(wallet.id) { mutableStateOf(wallet.initialBalanceRupiah) }
+                    LaunchedEffect(wallet.id) {
+                        recordedBalance = withContext(Dispatchers.IO) {
+                            BalanceRepository(activeDatabase).balance(wallet.id, System.currentTimeMillis()) ?: wallet.initialBalanceRupiah
+                        }
+                    }
+                    ReconciliationScreen(
+                        database = activeDatabase,
+                        wallet = wallet,
+                        recordedBalance = recordedBalance,
+                        onDismiss = { reconciliationWallet = null },
+                        onSuccess = { _ -> },
+                    )
+                }
                 if (lockSettings) AppLockSettings(
                     enabled = AppLock.isEnabled(appContext),
                     biometricEnabled = AppLock.biometricEnabled(appContext),
@@ -686,143 +735,19 @@ private fun HomeOverview(
     }, confirmButton = { OutlinedArusButton(onClick = { detailOpen = false }) { Text("Tutup") } })
     reconciliationWallet?.let { wallet ->
         val recorded = walletBalances[wallet.id] ?: 0L
-        val actual = actualBalance.toLongOrNull()?.takeIf { it >= 0L }
-        ArusDialog(onDismissRequest = { reconciliationWallet = null }, title = { Text("Cocokkan saldo") }, text = {
-            Column(Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()).testTag("reconciliation_dialog_content"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Dompet · ${wallet.name}")
-                Text("Saldo di Arus · ${formatRupiah(recorded)}")
-                ArusTextField(actualBalance, { actualBalance = it.filter(Char::isDigit) }, placeholder = "Saldo aktual", singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth().testTag("actual_balance_input"))
-                OutlinedArusButton(onClick = {
-                    if (mutationCheckOpen) mutationCheckOpen = false
-                    else scope.launch {
-                        mutationTransactions = withContext(Dispatchers.IO) {
-                            database.transactionDao().activeTransactionsThrough(wallet.id, System.currentTimeMillis())
-                        }
-                        matchedTransactionIds = emptySet()
-                        mutationCheckOpen = true
-                    }
-                }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (mutationCheckOpen) "Tutup cek mutasi" else "Cek mutasi")
+        ReconciliationScreen(
+            database = database,
+            wallet = wallet,
+            recordedBalance = recorded,
+            onDismiss = { reconciliationWallet = null },
+            onSuccess = { actual ->
+                walletBalances[wallet.id] = actual
+                scope.launch {
+                    latest.clear()
+                    latest.addAll(withContext(Dispatchers.IO) { database.transactionDao().latestTransactions() })
                 }
-                if (mutationCheckOpen) {
-                    Text("Tandai transaksi yang cocok dengan mutasi. Nominal ledger tidak berubah.")
-                    if (mutationTransactions.isEmpty()) Text("Belum ada transaksi untuk dicocokkan.")
-                    mutationTransactions.forEach { transaction ->
-                        ArusCard(modifier = Modifier.fillMaxWidth()) {
-                            Row(Modifier.fillMaxWidth().padding(ArusSpacing.Small),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(ArusSpacing.Small)) {
-                                ArusCheckbox(
-                                    checked = transaction.id in matchedTransactionIds,
-                                    onCheckedChange = { checked ->
-                                        matchedTransactionIds = if (checked)
-                                            matchedTransactionIds + transaction.id
-                                        else matchedTransactionIds - transaction.id
-                                    },
-                                    modifier = Modifier.testTag("mutation_match_${transaction.id}"),
-                                )
-                                Column(Modifier.weight(1f)) {
-                                    Text(transaction.merchant ?: transaction.note ?: transactionTypeLabel(transaction.type.name))
-                                    Text(formatRupiah(transaction.amountRupiah), style = ArusTheme.typography.label)
-                                }
-                            }
-                        }
-                    }
-                    Text("${matchedTransactionIds.size} transaksi cocok")
-                }
-                if (wallet.type == "CASH") {
-                    OutlinedArusButton(onClick = { cashCountOpen = !cashCountOpen }, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (cashCountOpen) "Tutup hitung pecahan" else "Hitung pecahan uang tunai")
-                    }
-                    if (cashCountOpen) {
-                        cashDenominations.forEach { denomination ->
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ArusSpacing.Small)) {
-                                Text(formatRupiah(denomination), modifier = Modifier.weight(1f))
-                                ArusTextField(
-                                    denominationCounts[denomination].orEmpty(),
-                                    { value -> denominationCounts = denominationCounts + (denomination to value.filter(Char::isDigit)) },
-                                    placeholder = "Lembar",
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    modifier = Modifier.width(112.dp),
-                                    testTag = "cash_count_$denomination",
-                                )
-                            }
-                        }
-                        val entered = cashDenominations.mapNotNull { denomination ->
-                            denominationCounts[denomination]?.toLongOrNull()?.takeIf { it > 0L }?.let { denomination to it }
-                        }
-                        val countedTotal = runCatching {
-                            entered.fold(0L) { sum, (denomination, count) -> Math.addExact(sum, Math.multiplyExact(denomination, count)) }
-                        }.getOrNull()
-                        Text("Total pecahan · ${countedTotal?.let(::formatRupiah) ?: "Nominal terlalu besar"}")
-                        OutlinedArusButton(
-                            onClick = { countedTotal?.let { actualBalance = it.toString(); reconciliationError = null } },
-                            enabled = entered.isNotEmpty() && countedTotal != null,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Gunakan total pecahan") }
-                    }
-                }
-                if (actual != null) {
-                    val difference = runCatching { BalanceReconciliation(recorded, actual).differenceRupiah }.getOrNull()
-                    difference?.let { differenceRupiah ->
-                        Text("Selisih · ${formatRupiah(differenceRupiah)}")
-                        FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            listOf("UNTRACKED" to "Tak terlacak", "MISSED" to "Transaksi terlupa", "OPENING_BALANCE" to "Saldo awal salah").forEach { (value, label) ->
-                                ArusButton(onClick = { resolutionKind = value }, kind = if (resolutionKind == value) ArusButtonKind.Secondary else ArusButtonKind.Outline) { Text(label) }
-                            }
-                        }
-                        if (resolutionKind == "MISSED") {
-                            var transactionType by remember(wallet.id, differenceRupiah) { mutableStateOf(if (differenceRupiah >= 0) "INCOME" else "EXPENSE") }
-                            var amount by remember(wallet.id, differenceRupiah) { mutableStateOf(kotlin.math.abs(differenceRupiah).toString()) }
-                            ArusButton(onClick = { transactionType = if (transactionType == "INCOME") "EXPENSE" else "INCOME" }, kind = ArusButtonKind.Outline) { Text(if (transactionType == "INCOME") "Pemasukan" else "Pengeluaran") }
-                            ArusTextField(amount, { amount = it.filter(Char::isDigit) }, placeholder = "Nominal transaksi terlupa", singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-                            if (amount.toLongOrNull() != kotlin.math.abs(differenceRupiah)) Text("Nominal transaksi harus sama dengan selisih.")
-                            val categoryId = database.categoryDao().activeCategories().firstOrNull { it.kind == transactionType }?.id
-                            resolutionParts = listOf(TransactionDao.ReconciliationPart(transactionType, amount.toLongOrNull() ?: 0L, null, categoryId, "Transaksi terlupa saat rekonsiliasi"))
-                        } else if (resolutionKind == "OPENING_BALANCE") {
-                            resolutionParts = if (differenceRupiah == 0L) emptyList() else listOf(TransactionDao.ReconciliationPart("ADJUSTMENT", kotlin.math.abs(differenceRupiah), if (differenceRupiah > 0) "PLUS" else "MINUS", null, "Koreksi saldo awal"))
-                        } else {
-                            var adjustmentAmount by remember(wallet.id, differenceRupiah) { mutableStateOf(kotlin.math.abs(differenceRupiah).toString()) }
-                            ArusTextField(adjustmentAmount, { adjustmentAmount = it.filter(Char::isDigit) }, placeholder = "Nominal selisih tak terlacak", singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-                            if (adjustmentAmount.toLongOrNull() != kotlin.math.abs(differenceRupiah)) Text("Nominal penyesuaian harus sama dengan selisih.")
-                            resolutionParts = if (differenceRupiah == 0L) emptyList() else listOf(TransactionDao.ReconciliationPart("ADJUSTMENT", adjustmentAmount.toLongOrNull() ?: 0L, if (differenceRupiah > 0) "PLUS" else "MINUS", null, "Selisih tak terlacak"))
-                        }
-                    }
-                }
-                reconciliationError?.let { Text(it) }
-            }
-        }, confirmButton = {
-            OutlinedArusButton(onClick = { reconciliationWallet = null }) { Text("Tutup") }
-            if (actual != null) OutlinedArusButton(onClick = {
-                val expectedDelta = runCatching { BalanceReconciliation(recorded, actual).differenceRupiah }.getOrDefault(0L)
-                val cashCounts = cashDenominations.mapNotNull { denomination ->
-                    denominationCounts[denomination]?.toLongOrNull()?.takeIf { it > 0L }
-                        ?.let { CashDenominationCountInput(denomination, it) }
-                }
-                val checkItems = if (mutationTransactions.isNotEmpty()) mutationTransactions.map { transaction ->
-                    ReconciliationItemInput(transaction.id, transaction.id in matchedTransactionIds)
-                } else emptyList()
-                val hasReviewDetails = cashCounts.isNotEmpty() || checkItems.isNotEmpty()
-                val selectedResolution = if (expectedDelta == 0L && hasReviewDetails) "MATCHED" else resolutionKind
-                val selectedParts = if (selectedResolution == "MATCHED") emptyList() else resolutionParts
-                if (expectedDelta == 0L && !hasReviewDetails) reconciliationError = "Saldo sudah cocok."
-                else if (selectedParts.isEmpty() && selectedResolution != "MATCHED" || selectedParts.any { it.amountRupiah <= 0L } || (selectedResolution == "MISSED" && selectedParts.any { it.categoryId == null })) reconciliationError = "Periksa rincian resolusi."
-                else scope.launch {
-                    val result = runCatching { withContext(Dispatchers.IO) {
-                        database.transactionDao().resolveReconciliationWithCashCounts(
-                            wallet.id, actual, System.currentTimeMillis(), selectedResolution, selectedParts,
-                            if (wallet.type == "CASH") cashCounts else emptyList(), checkItems,
-                        )
-                    } }
-                    result.onSuccess {
-                        walletBalances[wallet.id] = actual
-                        latest.clear(); latest.addAll(withContext(Dispatchers.IO) { database.transactionDao().latestTransactions() })
-                        reconciliationError = "Saldo cocok: ${formatRupiah(actual)}"
-                    }.onFailure { reconciliationError = it.message ?: "Resolusi gagal." }
-                }
-            }) { Text(if (actual == recorded && (mutationTransactions.isNotEmpty() || denominationCounts.isNotEmpty())) "Simpan pemeriksaan" else "Selesaikan") }
-        })
+            },
+        )
     }
 }
 
@@ -1040,90 +965,6 @@ private fun String.toLocalEpochMillisOrNull(endOfDay: Boolean): Long? {
 private fun String.toLocalDateOrNull(): LocalDate? = if (isBlank()) null else runCatching { LocalDate.parse(this) }.getOrNull()
 
 @Composable
-private fun CheckpointHistory(database: ArusDatabase, selectedWalletId: Long?, onWalletSelected: (Long) -> Unit, onBack: () -> Unit) {
-    var wallets by remember { mutableStateOf(emptyList<WalletEntity>()) }
-    var checkpoints by remember { mutableStateOf(emptyList<com.illustravibes.arus.data.ReconciliationCheckpointEntity>()) }
-    var monthlyTotals by remember { mutableStateOf(emptyList<com.illustravibes.arus.data.MonthlyUntrackedTotal>()) }
-    LaunchedEffect(database) {
-        wallets = withContext(Dispatchers.IO) { database.walletDao().allWallets() }
-        if (selectedWalletId == null) wallets.firstOrNull()?.id?.let(onWalletSelected)
-    }
-    LaunchedEffect(database, selectedWalletId) {
-        val wallet = selectedWalletId ?: return@LaunchedEffect
-        val start = LocalDate.now().minusMonths(2).withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val end = LocalDate.now().plusMonths(1).withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        val data = withContext(Dispatchers.IO) {
-            database.reconciliationCheckpointDao().checkpointsForWallet(wallet) to
-                database.reconciliationCheckpointDao().monthlyUntrackedTotals(wallet, start, end)
-        }
-        checkpoints = data.first
-        monthlyTotals = data.second
-    }
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(ArusSpacing.Medium)) {
-        Text("Riwayat rekonsiliasi", style = ArusTheme.typography.headline)
-        ArusButton(onClick = onBack, kind = ArusButtonKind.Outline) { Text("Kembali ke transaksi") }
-        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(ArusSpacing.Small)) {
-            wallets.forEach { wallet ->
-                ArusButton(onClick = { onWalletSelected(wallet.id) }, selected = selectedWalletId == wallet.id, kind = ArusButtonKind.Outline) { Text(wallet.name) }
-            }
-        }
-        if (monthlyTotals.isNotEmpty()) {
-            ArusCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(ArusSpacing.Medium), verticalArrangement = Arrangement.spacedBy(ArusSpacing.Small)) {
-                    Text("Tak terlacak per bulan", style = ArusTheme.typography.title)
-                    val average = monthlyTotals.map { it.untrackedRupiah }.average().toLong()
-                    androidx.compose.foundation.layout.Row(
-                        Modifier.fillMaxWidth().height(150.dp),
-                        horizontalArrangement = Arrangement.spacedBy(ArusSpacing.Small),
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        val maximum = monthlyTotals.maxOf { it.untrackedRupiah }.coerceAtLeast(1L)
-                        val barColor = ArusTheme.colors.muted
-                        monthlyTotals.forEach { total ->
-                            val monthLabel = runCatching {
-                                java.time.YearMonth.parse(total.month).month.getDisplayName(java.time.format.TextStyle.SHORT, Locale.forLanguageTag("id-ID"))
-                            }.getOrDefault(total.month)
-                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(formatRupiah(total.untrackedRupiah))
-                                androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().weight(
-                                    (total.untrackedRupiah.toFloat() / maximum).coerceAtLeast(0.08f))) {
-                                    drawRect(barColor)
-                                }
-                                Text(monthLabel)
-                            }
-                        }
-                    }
-                    ArusCard(Modifier.fillMaxWidth()) {
-                        androidx.compose.foundation.layout.Row(Modifier.padding(ArusSpacing.Small).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Rata-rata tak terlacak")
-                            Text("${formatRupiah(average)} / bulan")
-                        }
-                    }
-                }
-            }
-        }
-        Text("CHECKPOINT", style = ArusTheme.typography.label)
-        if (checkpoints.isEmpty()) Text("Belum ada checkpoint untuk dompet ini.", color = ArusTheme.colors.mutedForeground)
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(ArusSpacing.Small)) {
-            items(checkpoints, key = { it.id }) { checkpoint ->
-                ArusCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(ArusSpacing.Medium), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(ArusFormatting.formatDateTime(java.time.Instant.ofEpochMilli(checkpoint.occurredAtEpochMillis).atZone(ZoneId.systemDefault())))
-                        Text("Saldo tercatat · ${formatRupiah(checkpoint.recordedBalanceRupiah)}")
-                        Text("Saldo aktual · ${formatRupiah(checkpoint.actualBalanceRupiah)}")
-                        Text("Selisih · ${formatRupiah(checkpoint.differenceRupiah)}")
-                        Text(checkpoint.resolution ?: "Tanpa resolusi")
-                        if (checkpoint.needsRecheck) Text("Perlu rekonsiliasi ulang", color = ArusTheme.colors.error)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun TransactionDetails(database: ArusDatabase, transactionId: Long, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var transaction by remember(transactionId) { mutableStateOf<TransactionEntity?>(null) }
@@ -1216,7 +1057,7 @@ private fun TransactionDetails(database: ArusDatabase, transactionId: Long, onDi
     if (editorOpen) {
         LaunchedEffect(editorOpen, row.id) {
             amount = row.amountRupiah.toString(); note = row.note.orEmpty(); merchant = row.merchant.orEmpty()
-            date = LocalDate.ofInstant(java.time.Instant.ofEpochMilli(row.occurredAtEpochMillis), ZoneId.systemDefault()).toString()
+            date = java.time.Instant.ofEpochMilli(row.occurredAtEpochMillis).atZone(ZoneId.systemDefault()).toLocalDate().toString()
             walletId = row.walletId; categoryId = row.categoryId
         }
         ArusDialog(onDismissRequest = { editorOpen = false }, title = { Text("Edit transaksi") }, text = {

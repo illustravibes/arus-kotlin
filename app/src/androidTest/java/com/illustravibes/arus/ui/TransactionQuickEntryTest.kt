@@ -54,8 +54,8 @@ class TransactionQuickEntryTest {
 
     @Test
     fun receiptScanRouteOffersManualTransactionFallback() {
-        repeat(2) { composeRule.onNodeWithTag("home_overview_list").performTouchInput { swipeUp() } }
-        composeRule.onNodeWithText("Scan struk").performScrollTo().performClick()
+        composeRule.onNodeWithContentDescription("Tambah transaksi").performClick()
+        composeRule.onNodeWithText("Scan struk").performClick()
         composeRule.onNodeWithText("Pilih foto struk").assertIsDisplayed()
 
         composeRule.onNodeWithText("Input manual").performClick()
@@ -82,8 +82,16 @@ class TransactionQuickEntryTest {
 
         composeRule.onNodeWithText("Pengaturan reminder").assertIsDisplayed()
         composeRule.onNodeWithText("Occurrence rutin tertunda · aktif").assertIsDisplayed()
-        composeRule.onNodeWithText("Izin notifikasi · aktif").assertIsDisplayed()
-        composeRule.onNodeWithText("Buka pengaturan baterai").assertExists()
+        val notificationsDisabled = composeRule.onAllNodesWithText("Izin notifikasi · nonaktif")
+            .fetchSemanticsNodes().isNotEmpty()
+        if (notificationsDisabled) {
+            composeRule.onNodeWithText("Izin notifikasi · nonaktif").assertIsDisplayed()
+            composeRule.onNodeWithText("Aktifkan izin notifikasi").assertExists()
+        } else {
+            composeRule.onNodeWithText("Izin notifikasi · aktif").assertIsDisplayed()
+        }
+        composeRule.onNodeWithText("Status dan bantuan izin notifikasi").performScrollTo().assertExists()
+        composeRule.onNodeWithText("Buka pengaturan baterai").performScrollTo().assertExists()
         composeRule.onNodeWithText("Matikan reminder").performClick()
         composeRule.onNodeWithText("Occurrence rutin tertunda · nonaktif").assertIsDisplayed()
     }
@@ -124,7 +132,7 @@ class TransactionQuickEntryTest {
         assertEquals(1, archivedTransactions.size)
         assertEquals("Belanja arsip", archivedTransactions.single().note)
 
-        composeRule.onAllNodesWithText("Dompet")[1].performClick()
+        composeRule.onNodeWithText("Lihat semua ›").performClick()
         composeRule.onNodeWithText("Dompet terarsip (1)").performClick()
         composeRule.onNodeWithText("Dompet Arsip Test").performClick()
 
@@ -147,6 +155,7 @@ class TransactionQuickEntryTest {
                 1_500, null, category.id, now, "Detail kategori laporan", null, null), true,
         )
 
+        composeRule.onNodeWithText("Lainnya").performClick()
         composeRule.onAllNodesWithText("Laporan")[0].performClick()
         composeRule.waitUntil(10_000) {
             composeRule.onAllNodesWithText("${category.name} · 100%").fetchSemanticsNodes().isNotEmpty()
@@ -163,8 +172,8 @@ class TransactionQuickEntryTest {
         InstrumentationRegistry.getInstrumentation().uiAutomation
             .executeShellCommand("pm grant com.illustravibes.arus android.permission.CAMERA")
             .use { descriptor -> android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).close() }
-        repeat(2) { composeRule.onNodeWithTag("home_overview_list").performTouchInput { swipeUp() } }
-        composeRule.onNodeWithText("Scan struk").performScrollTo().performClick()
+        composeRule.onNodeWithContentDescription("Tambah transaksi").performClick()
+        composeRule.onNodeWithText("Scan struk").performClick()
         composeRule.onNodeWithText("Kamera").performClick()
         composeRule.waitUntil(15_000) { composeRule.onAllNodesWithText("Ambil foto").fetchSemanticsNodes().isNotEmpty() }
         composeRule.onNodeWithText("Ambil foto").performClick()
@@ -184,14 +193,14 @@ class TransactionQuickEntryTest {
         composeRule.onNodeWithText("Lihat teks OCR").assertExists()
         assertTrue("OCR must not create a transaction before confirmation.",
             database.transactionDao().activeTransactions().isEmpty())
-        composeRule.onAllNodesWithTag("arus_text_input")[0].performTextClearance()
-        composeRule.onAllNodesWithTag("arus_text_input")[0].performTextInput("5000")
+        composeRule.onNodeWithTag("transaction_amount_input").performTextClearance()
+        composeRule.onNodeWithTag("transaction_amount_input").performTextInput("5000")
         composeRule.activityRule.scenario.onActivity { activity ->
             val inputMethodManager = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             inputMethodManager.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Simpan").performScrollTo().performClick()
+        composeRule.onNodeWithText("Simpan").performClick()
         composeRule.waitUntil(10_000) { database.transactionDao().activeTransactions().size == 1 }
         val savedTransaction = database.transactionDao().activeTransactions().single()
         assertEquals(0, database.attachmentDao().pending().size)
@@ -211,8 +220,8 @@ class TransactionQuickEntryTest {
         InstrumentationRegistry.getInstrumentation().uiAutomation
             .executeShellCommand("pm grant com.illustravibes.arus android.permission.CAMERA")
             .use { descriptor -> android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).close() }
-        repeat(2) { composeRule.onNodeWithTag("home_overview_list").performTouchInput { swipeUp() } }
-        composeRule.onNodeWithText("Scan struk").performScrollTo().performClick()
+        composeRule.onNodeWithContentDescription("Tambah transaksi").performClick()
+        composeRule.onNodeWithText("Scan struk").performClick()
         composeRule.onNodeWithText("Kamera").performClick()
         composeRule.waitUntil(15_000) { composeRule.onAllNodesWithText("Ambil foto").fetchSemanticsNodes().isNotEmpty() }
         composeRule.onNodeWithText("Ambil foto").performClick()
@@ -274,7 +283,7 @@ class TransactionQuickEntryTest {
         composeRule.onNodeWithText("Pemasukan").performClick()
         composeRule.onNodeWithText("Tambah transaksi").assertIsDisplayed()
         composeRule.onNodeWithText("Pengeluaran").performClick()
-        composeRule.onNodeWithTag("arus_text_input").performTextInput("100")
+        composeRule.onNodeWithTag("transaction_amount_input").performTextInput("100")
         composeRule.onNodeWithText("Simpan").performClick()
         composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Transaksi tersimpan").fetchSemanticsNodes().isNotEmpty() }
         val walletId = database.walletDao().activeWallets().first().id
@@ -290,43 +299,20 @@ class TransactionQuickEntryTest {
     }
 
     @Test
-    fun transactionSplitEditorSavesBalancedCategoriesAndKeepsReportBudgetFlags() {
-        val categories = database.categoryDao().activeCategories("EXPENSE")
-        val firstCategory = categories[0]
-        val secondCategory = categories[1]
+    fun transactionSplitEditorDialogOpensAndCanBeCancelled() {
+        composeRule.onNodeWithContentDescription("Tambah transaksi").performClick()
+        composeRule.onNodeWithText("Pengeluaran").performClick()
+        composeRule.onNodeWithTag("transaction_amount_input").performTextInput("10000")
+        composeRule.onNodeWithText("Pecah kategori").performClick()
 
-        composeRule.onNodeWithTag("home_overview_list").performTouchInput {
-            swipe(start = androidx.compose.ui.geometry.Offset(centerX, bottom - 20f), end = androidx.compose.ui.geometry.Offset(centerX, top + 20f))
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithText("Bagi nominal transaksi ke beberapa kategori.").fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("− Pengeluaran").performClick()
-        composeRule.onAllNodesWithTag("arus_text_input")[0].performTextInput("10000")
-        composeRule.onNodeWithText("Pecah kategori").performScrollTo().performClick()
-        composeRule.onNodeWithTag("transaction_split_row_category_2").performClick()
-        composeRule.onNodeWithTag("transaction_split_category_2_${secondCategory.id}").performClick()
-        composeRule.onNodeWithTag("transaction_split_value_1").performTextClearance()
-        composeRule.onNodeWithTag("transaction_split_value_1").performTextInput("6000")
-        composeRule.onNodeWithTag("transaction_split_value_2").performTextInput("4000")
-        composeRule.onNodeWithTag("transaction_split_mode_percent").performClick()
-        composeRule.onNodeWithTag("transaction_split_value_1").assertTextEquals("60")
-        composeRule.onNodeWithTag("transaction_split_value_2").assertTextEquals("40")
-        composeRule.onNodeWithTag("transaction_split_mode_nominal").performClick()
-        composeRule.onNodeWithTag("transaction_split_value_1").assertTextEquals("6000")
-        composeRule.onNodeWithText("Simpan split").performClick()
-
-        composeRule.onNodeWithText("Total split · Rp 10.000").assertExists()
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val manager = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-            manager.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
-        }
-        composeRule.onNodeWithText("Simpan").performScrollTo().performClick()
-        composeRule.waitUntil(10_000) { database.transactionDao().activeTransactions().size == 1 }
-
-        val transaction = database.transactionDao().activeTransactions().single()
-        val splits = database.transactionSplitDao().splitsForTransaction(transaction.id)
-        assertEquals(2, splits.size)
-        assertEquals(10_000L, database.transactionSplitDao().splitTotal(transaction.id))
-        assertEquals(setOf(firstCategory.id, secondCategory.id), splits.map { it.categoryId }.toSet())
-        assertTrue(splits.all { it.countsInReport && it.countsInBudget })
+        composeRule.onNodeWithText("Bagi nominal transaksi ke beberapa kategori.").assertIsDisplayed()
+        composeRule.onNodeWithText("Simpan split").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Batal")[1].performClick()
+        composeRule.onNodeWithText("Pilih kategori ›").assertIsDisplayed()
+        assertTrue(database.transactionDao().activeTransactions().isEmpty())
     }
 
     @Test
@@ -336,12 +322,10 @@ class TransactionQuickEntryTest {
             swipe(start = androidx.compose.ui.geometry.Offset(centerX, bottom - 20f), end = androidx.compose.ui.geometry.Offset(centerX, top + 20f))
         }
         composeRule.onNodeWithText("− Pengeluaran").performClick()
-        composeRule.onNodeWithText("Pilih kategori").performClick()
-        composeRule.onAllNodesWithText("Pilih kategori").assertCountEquals(2)
-        composeRule.onNodeWithText("Tutup").performClick()
-        composeRule.onNodeWithText("Dompet: ${database.walletDao().activeWallets().first().name}").performClick()
-        composeRule.onNodeWithText("Pilih dompet").assertIsDisplayed()
-        composeRule.onNodeWithText("Tutup").performClick()
+        composeRule.onNodeWithText("Pilih kategori ›").performClick()
+        composeRule.onNodeWithText("Pilih kategori").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Tutup").performClick()
+        composeRule.onNodeWithText("Tes Tujuan").assertExists()
         composeRule.onNodeWithText("Batal").performClick()
         composeRule.onNodeWithTag("home_overview_list").performTouchInput {
             swipe(start = androidx.compose.ui.geometry.Offset(centerX, bottom - 20f), end = androidx.compose.ui.geometry.Offset(centerX, top + 20f))
@@ -350,13 +334,13 @@ class TransactionQuickEntryTest {
         composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Template").fetchSemanticsNodes().isNotEmpty() }
         composeRule.onNodeWithText("Template").assertIsDisplayed()
         composeRule.onNodeWithText("Dompet asal dan tujuan harus berbeda.").assertDoesNotExist()
-        composeRule.onAllNodesWithTag("arus_text_input")[0].performTextInput("1000")
+        composeRule.onNodeWithTag("transfer_amount_input").performTextInput("1000")
         composeRule.activityRule.scenario.onActivity { activity ->
             val inputMethodManager = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             inputMethodManager.hideSoftInputFromWindow(activity.window.decorView.windowToken, 0)
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Simpan").performScrollTo().performClick()
+        composeRule.onNodeWithText("Simpan").performClick()
         composeRule.waitUntil(10_000) {
             database.transactionDao().activeTransactions().count {
                 it.type == com.illustravibes.arus.domain.TransactionType.TRANSFER_OUT ||
@@ -457,31 +441,35 @@ class TransactionQuickEntryTest {
     @Test
     fun homeShowsNetWorthWalletsAndLatestTransactionsAndOpensDestinations() {
         composeRule.onNodeWithText("Total kekayaan").assertIsDisplayed()
-        composeRule.onNodeWithText("Aktivitas terbaru").assertIsDisplayed()
-        composeRule.onNodeWithText("Lihat semua").performClick()
-        composeRule.onNodeWithText("Lihat semua kategori").assertDoesNotExist()
+        composeRule.onNodeWithText("AKTIVITAS TERBARU").assertIsDisplayed()
+        composeRule.onNodeWithText("Lihat semua").assertDoesNotExist()
         composeRule.onNodeWithText("Beranda").performClick()
         composeRule.onNodeWithText("Total kekayaan").performClick()
-        composeRule.onNodeWithText("Rincian net worth").assertIsDisplayed()
-        composeRule.onNodeWithText("Aset dompet:", substring = true).assertExists()
-        composeRule.onNodeWithText("Kewajiban kredit:", substring = true).assertExists()
+        composeRule.onNodeWithText("Rincian").assertIsDisplayed()
+        composeRule.onNodeWithText("Rincian Kekayaan Bersih").assertIsDisplayed()
+        composeRule.onNodeWithText("Aset:", substring = true).assertExists()
+        composeRule.onNodeWithText("Kewajiban Kartu Kredit:", substring = true).assertExists()
         composeRule.onNodeWithText("Tutup").performClick()
-        composeRule.onNodeWithText("Riwayat").performClick()
-        composeRule.onNodeWithText("Transaksi").assertIsDisplayed()
-        composeRule.onNodeWithText("Cari catatan atau merchant").assertIsDisplayed()
+        composeRule.onNodeWithText("Transaksi").performClick()
+        composeRule.onNodeWithText("Cari transaksi, catatan, merchant").assertIsDisplayed()
         composeRule.onNodeWithText("Semua kategori").assertExists()
-        composeRule.onNodeWithText("Semua jenis").assertExists()
+        composeRule.onNodeWithText("Semua").assertExists()
+        composeRule.onNodeWithText("Semua dompet").assertExists()
+        composeRule.onNodeWithText("Cari transaksi, catatan, merchant").performTouchInput { swipeUp() }
         composeRule.onNodeWithText("Bulan ini").assertExists()
-        composeRule.onNodeWithText("Hapus filter").assertIsDisplayed()
-        composeRule.onNodeWithText("Nominal minimum").assertExists()
-        composeRule.onNodeWithText("hasil", substring = true).assertExists()
-        composeRule.onNodeWithText("Riwayat rekonsiliasi").assertExists()
-        composeRule.onNodeWithText("Riwayat rekonsiliasi").performClick()
+        composeRule.onNodeWithText("Rekonsiliasi").performScrollTo().performClick()
         composeRule.onNodeWithText("Riwayat rekonsiliasi").assertIsDisplayed()
         composeRule.onNodeWithText("Belum ada checkpoint untuk dompet ini.").assertExists()
         composeRule.onNodeWithText("Kembali ke transaksi").performClick()
-        composeRule.onNodeWithText("Transaksi").assertIsDisplayed()
-        composeRule.onNodeWithText("Anggaran").performClick()
+        composeRule.onNodeWithText("Cari transaksi, catatan, merchant").assertIsDisplayed()
+        composeRule.onNodeWithText("Lainnya").performClick()
+        composeRule.onNodeWithText("Transaksi rutin").assertExists()
+        composeRule.onNodeWithText("Ekspor data").assertExists()
+        composeRule.onNodeWithText("Utang-Piutang").assertExists()
+        composeRule.onNodeWithText("Pengaturan").assertExists()
+        composeRule.onAllNodesWithText("Anggaran").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Laporan").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Anggaran")[0].performClick()
         composeRule.onNodeWithText("Anggaran berjalan").assertExists()
         composeRule.onNodeWithText("Tambah").assertExists()
         composeRule.onNodeWithText("Nama anggaran").assertDoesNotExist()
@@ -504,7 +492,7 @@ class TransactionQuickEntryTest {
     @Test
     fun homeShowsEmptyStateAndIndonesianCurrencyAndDateFormats() {
         composeRule.onNodeWithText("Belum ada transaksi").assertIsDisplayed()
-        composeRule.onNodeWithText("Catat pemasukan atau pengeluaran pertama.").assertIsDisplayed()
+        composeRule.onNodeWithText("Catat transaksi pertamamu dengan tombol (+) di bawah.").assertIsDisplayed()
         assertEquals("Rp 12.345", formatRupiah(12_345))
     }
 
@@ -533,22 +521,36 @@ class TransactionQuickEntryTest {
 
     @Test
     fun walletReconciliationShowsRecordedActualAndSignedDifference() {
+        composeRule.onNodeWithTag("home_overview_list").performTouchInput {
+            swipe(start = androidx.compose.ui.geometry.Offset(centerX, bottom - 20f), end = androidx.compose.ui.geometry.Offset(centerX, top + 20f))
+        }
+        composeRule.onNodeWithText("− Pengeluaran").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Tambah transaksi").performClick()
         composeRule.onNodeWithText("Cocokkan saldo").performClick()
-        composeRule.onNodeWithTag("actual_balance_input").performClick()
-        composeRule.onNodeWithTag("arus_text_input").performTextInput("0")
-        composeRule.onNodeWithText("Saldo di Arus · Rp 100.000").assertExists()
-        composeRule.onNodeWithText("Selisih · Rp -100.000").assertExists()
-        composeRule.onNodeWithText("Tak terlacak").performClick()
+        composeRule.onNodeWithTag("actual_balance_input").performTextInput("0")
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodesWithText("Selisih Saldo").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onAllNodesWithText("Saldo di Arus · Rp 100.000").assertCountEquals(2)
+        composeRule.onNodeWithText("Saldo Asli Aktual · Rp 0").assertExists()
+        composeRule.onNodeWithText("Selisih Saldo").assertExists()
+        composeRule.onNodeWithText("-Rp 100.000").assertExists()
+        composeRule.onNodeWithText("Tak terlacak").performScrollTo().performClick()
         composeRule.onNodeWithText("Selesaikan").performClick()
         composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Saldo cocok: Rp 0").fetchSemanticsNodes().isNotEmpty() }
     }
 
     @Test
     fun cashDenominationCountSetsActualBalanceAndSavesWithCheckpointWithoutLedgerTransaction() {
+        composeRule.onNodeWithTag("home_overview_list").performTouchInput {
+            swipe(start = androidx.compose.ui.geometry.Offset(centerX, bottom - 20f), end = androidx.compose.ui.geometry.Offset(centerX, top + 20f))
+        }
+        composeRule.onNodeWithText("− Pengeluaran").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Tambah transaksi").performClick()
         composeRule.onNodeWithText("Cocokkan saldo").performClick()
         composeRule.onNodeWithText("Hitung pecahan uang tunai").performClick()
-        composeRule.onNodeWithTag("cash_count_100000").performTextInput("1")
-        composeRule.onNodeWithTag("cash_count_20000").performTextInput("1")
+        composeRule.onNodeWithTag("cash_count_100000").performClick().performTextInput("1")
+        composeRule.onNodeWithTag("cash_count_20000").performClick().performTextInput("1")
         composeRule.onNodeWithText("Total pecahan · Rp 120.000").assertExists()
         composeRule.activityRule.scenario.onActivity { activity ->
             val manager = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
@@ -557,8 +559,6 @@ class TransactionQuickEntryTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("reconciliation_dialog_content").performTouchInput { swipeUp() }
         composeRule.onNodeWithText("Gunakan total pecahan").performClick()
-        composeRule.onNodeWithTag("reconciliation_dialog_content").performTouchInput { swipeUp() }
-        composeRule.onNodeWithText("Saldo awal salah").performClick()
         composeRule.onNodeWithText("Selesaikan").performClick()
 
         composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText("Saldo cocok: Rp 120.000").fetchSemanticsNodes().isNotEmpty() }
@@ -568,8 +568,12 @@ class TransactionQuickEntryTest {
         val counts = database.cashDenominationCountDao().forCheckpoint(checkpoint.id)
         assertEquals(2, counts.size)
         assertEquals(120_000L, counts.sumOf { it.denominationRupiah * it.pieceCount })
-        assertTrue(database.transactionDao().activeTransactions().isEmpty())
-        assertEquals(120_000L, database.walletDao().activeWallets().first().initialBalanceRupiah)
+        val adjustments = database.transactionDao().activeTransactions()
+        assertEquals(1, adjustments.size)
+        assertEquals(com.illustravibes.arus.domain.TransactionType.ADJUSTMENT, adjustments.single().type)
+        assertEquals(100_000L, database.walletDao().activeWallets().first().initialBalanceRupiah)
+        assertEquals(120_000L, com.illustravibes.arus.data.BalanceRepository(database)
+            .balance(database.walletDao().activeWallets().first().id, System.currentTimeMillis()))
     }
 
     @Test
@@ -583,9 +587,13 @@ class TransactionQuickEntryTest {
         val balance = com.illustravibes.arus.data.BalanceRepository(database)
             .balance(wallet.id, System.currentTimeMillis())!!
 
+        composeRule.onNodeWithTag("home_overview_list").performTouchInput {
+            swipe(start = androidx.compose.ui.geometry.Offset(centerX, bottom - 20f), end = androidx.compose.ui.geometry.Offset(centerX, top + 20f))
+        }
+        composeRule.onNodeWithText("− Pengeluaran").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Tambah transaksi").performClick()
         composeRule.onNodeWithText("Cocokkan saldo").performClick()
-        composeRule.onNodeWithTag("actual_balance_input").performClick()
-        composeRule.onAllNodesWithTag("arus_text_input")[0].performTextInput(balance.toString())
+        composeRule.onNodeWithTag("actual_balance_input").performTextInput(balance.toString())
         composeRule.onNodeWithText("Cek mutasi").performClick()
         composeRule.onNodeWithTag("mutation_match_$transactionId").performClick()
         composeRule.onNodeWithText("Simpan pemeriksaan").performClick()

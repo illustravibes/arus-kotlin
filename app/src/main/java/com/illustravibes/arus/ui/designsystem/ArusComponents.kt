@@ -191,22 +191,7 @@ fun ArusTextField(
     }
 }
 
-@Composable
-fun ArusCard(
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-    contentPadding: androidx.compose.ui.unit.Dp = ArusSpacing.Large,
-    content: @Composable () -> Unit,
-) {
-    val shape = RoundedCornerShape(ArusRadius.Large)
-    Box(
-        modifier = modifier.clip(shape)
-            .background(ArusTheme.colors.surface)
-            .border(1.dp, ArusTheme.colors.border, shape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(contentPadding),
-    ) { content() }
-}
+// ArusCard is defined in ArusCoreComponents.kt
 
 @Composable
 fun ArusCheckbox(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
