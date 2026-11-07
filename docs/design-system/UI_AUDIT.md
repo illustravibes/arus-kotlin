@@ -25,7 +25,7 @@ Nomor baris sengaja tidak dicantumkan karena berubah selama refactor. Cari nama 
 - `MainActivity` mengelola `selectedDestination` dengan conditional dispatch. Routing bukan `NavHost`.
 - Bottom navigation menyediakan Beranda, Transaksi, Anggaran, dan Lainnya, dengan FAB tengah. Transaksi membuka Riwayat. `QuickAddActionSheet` memuat pengeluaran, pemasukan, transfer, scan struk, group order, dan cocokkan saldo.
 - Bottom navigation tetap tampil pada rute subfitur. Tombol kembali tambahan pada Anggaran sudah dihapus; Laporan masih memakai tombol kembali terpisah. Pola ini belum sesuai ketentuan plan bahwa subhalaman memakai tombol kembali tanpa bottom nav.
-- Layar modular Dompet, Kategori, dan Anggaran aktif dirutekan. Composable legacy `WalletManagement`, `CategoryManagement`, serta dialog form pembantunya telah dihapus dari `MainActivity`.
+- Layar modular Beranda, Transaksi/Riwayat, Form Transaksi, Detail Transaksi, Transfer, Dompet, Kategori, dan Anggaran aktif dirutekan. Composable legacy `WalletManagement`, `CategoryManagement`, `HomeOverview`, `TransactionHistory`, `TransactionDetails`, `TransferEntry`, `TransactionQuickEntry`, serta dialog form pembantunya telah dihapus dari `MainActivity`.
 
 ### 1.3 State dan akses data
 
@@ -60,15 +60,15 @@ Status berikut menilai struktur dan keterjangkauan source. Kesesuaian visual wir
 | Kode / fitur | Status kode | Implementasi dan catatan |
 |---|---|---|
 | S-00a Quick Add | Ada | FAB membuka `QuickAddActionSheet` dengan enam aksi. Beranda juga menampilkan baris aksi cepat; periksa hierarki dan duplikasi lewat screenshot. |
-| S-10 Beranda | Ada, aktif | `HomeScreen` dirutekan dari `MainActivity`; menampilkan ringkasan, carousel dompet, aksi cepat, dan aktivitas. Visual belum diverifikasi. |
+| S-10 Beranda | Ada, aktif | `HomeScreen` dirutekan dari `MainActivity`; menampilkan ringkasan, carousel dompet, aksi cepat, dan aktivitas. Composable legacy `HomeOverview` telah dihapus dari `MainActivity`. Visual belum diverifikasi. |
 | S-11 Rincian kekayaan bersih | Parsial | Rincian aset dan kewajiban muncul dalam dialog, bukan layar penuh. |
 | S-12 Tugas tertunda / inbox | Inbox terpusat belum ditemukan | Occurrence rutin tertunda tampil di `RecurringManagement`; routing tidak memiliki tujuan inbox khusus. |
 | S-20–23 Dompet | Screen modular dirutekan | `WalletListScreen` dibuka dari “Lihat semua” di Beranda; kartu dompet membuka detail langsung. Daftar membuka form tambah/edit dan detail; detail mendukung rekonsiliasi, transaksi, dan edit. Router menyimpan ID target edit untuk pemulihan setelah activity recreation. Composable `WalletManagement` lama telah dihapus dari `MainActivity`. Tes AVD mencakup detail dompet terarsip dan edit setelah activity recreation; belum mencakup seluruh aksi daftar/detail modular. |
-| S-30 Riwayat, S-36 cari/filter | Ada, aktif | `TransactionHistoryScreen` dirutekan; pencarian dan filter berada di layar Riwayat. |
-| S-31 Form transaksi | Ada, aktif | `TransactionFormScreen` ditampilkan sebagai form transaksi. |
+| S-30 Riwayat, S-36 cari/filter | Ada, aktif | `TransactionHistoryScreen` dirutekan; pencarian dan filter berada di layar Riwayat. Composable legacy `TransactionHistory` telah dihapus dari `MainActivity`. |
+| S-31 Form transaksi | Ada, aktif | `TransactionFormScreen` ditampilkan sebagai form transaksi. Composable legacy `TransactionQuickEntry` telah dihapus dari `MainActivity`. |
 | S-32 / S-32a Split kategori | Parsial | Split berada di dalam alur form transaksi; sheet terpisah belum ditemukan pada implementasi yang diperiksa. |
-| S-33 Detail transaksi | Ada, aktif | `TransactionDetailScreen` menampilkan detail dan konfirmasi hapus. |
-| S-34 Transfer | Ada, aktif | `TransferScreen` dibuka dari state overlay; pemilihan dompet memakai picker. |
+| S-33 Detail transaksi | Ada, aktif | `TransactionDetailScreen` menampilkan detail dan konfirmasi hapus. Composable legacy `TransactionDetails` telah dihapus dari `MainActivity`. |
+| S-34 Transfer | Ada, aktif | `TransferScreen` dibuka dari state overlay; pemilihan dompet memakai picker. Composable legacy `TransferEntry` telah dihapus dari `MainActivity`. |
 | S-35 Template transfer | Parsial / alur belum diverifikasi | Source memuat “Tarik tunai”, “Bayar kredit”, dan “Top up”. Keberadaan pilihan belum membuktikan hasil setiap alur sesuai wireframe. |
 | S-37 / S-38 Picker kategori/dompet | Ada sebagai bottom sheet | `CategoryPickerSheet` dan `WalletPickerSheet` tersedia; perilaku visual belum diuji. |
 | S-40–42 Kategori | Screen modular dirutekan | `Kategori` dibuka dari Lainnya. `CategoryListScreen` membuka `CategoryFormScreen`, menyediakan aksi naik urutan, dan menyegarkan daftar setelah mutasi; `DeleteCategoryDialog` menangani migrasi transaksi dan transaksi split secara atomik atau pembersihan referensi tanpa kategori. Router menyimpan ID target edit setelah activity recreation. Composable `CategoryManagement` lama telah dihapus dari `MainActivity`. Tes regresi migrasi transaksi/split dan activity recreation ditambahkan ke suite instrumented test. |
@@ -119,7 +119,7 @@ Status berikut menilai struktur dan keterjangkauan source. Kesesuaian visual wir
 | 1. Audit | Audit source diperbarui. Validasi visual dan aksesibilitas perangkat belum selesai. |
 | 2. Fondasi | Token, tema, resource font, registry ikon, haptic wrapper, dan formatter nominal tersedia. Adopsi lintas layar dan aksesibilitas belum konsisten. |
 | 3. Komponen | Komponen reusable dan preview gallery tersedia. Komponen legacy masih ada. |
-| 4. Refactor layar | Screen modular Dompet, Kategori, dan Anggaran aktif dirutekan. Composable legacy `WalletManagement` dan `CategoryManagement` telah dibersihkan dari `MainActivity`; cakupan refactor layar lain berlanjut. |
+| 4. Refactor layar | Screen modular Beranda, Transaksi/Riwayat, Form Transaksi, Detail Transaksi, Transfer, Dompet, Kategori, dan Anggaran aktif dirutekan. Composable legacy `WalletManagement`, `CategoryManagement`, `HomeOverview`, `TransactionHistory`, `TransactionDetails`, `TransferEntry`, dan `TransactionQuickEntry` telah dibersihkan dari `MainActivity`; cakupan refactor layar sekunder (Laporan, Rutin, Utang) berlanjut. |
 | 5. QA | `compileDebugKotlin`, `testDebugUnitTest` (29 test), `lintDebug` (0 error), dan `connectedDebugAndroidTest` (117 test di AVD `arus_api26`) lulus 100%. Screenshot AVD, TalkBack, font scale, serta pengukuran kontras belum dicatat. |
 
 Rujukan desain tetap `docs/design-system/arus-design-system-plan-v2.md`. Status source tidak menyatakan layar siap produksi; validasi visual dan QA perangkat tetap diperlukan.
